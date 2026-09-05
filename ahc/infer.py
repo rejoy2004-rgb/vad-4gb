@@ -314,8 +314,9 @@ def predict_video(vid, path, level, model, mu, sd, device, params, encoder=None,
         duration = duration_hint or (float(ts[-1]) if len(ts) else 0.0)
     else:
         t0 = time.perf_counter()
+        from .extract import _decode_scale
         pairs = list(sample_frames(path, FPS, MAX_FRAMES, out_size=encoder.size,
-                                   tiles=encoder.tiles))
+                                   tiles=_decode_scale(encoder)))
         ts = np.asarray([p[0] for p in pairs], dtype=np.float32)
         frames = [p[1] for p in pairs]
         stats["decode_ms"] = (time.perf_counter() - t0) * 1000

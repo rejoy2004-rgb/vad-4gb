@@ -1,0 +1,38 @@
+{
+ "level1": {
+  "l1_bias": 0.0,
+  "topk_frac": 0.15,
+  "smooth": 1,
+  "w_window": 0.2,
+  "w_zeroshot": 0.4
+ },
+ "level2": {
+  "hi": 0.5,
+  "lo": 0.4,
+  "q_base": 0.75,
+  "merge_gap": 0.0,
+  "merge_rel": 1.0,
+  "pad": 0.5,
+  "smooth": 3,
+  "min_dur": 1.5,
+  "relative": true,
+  "gate": 0.7,
+  "single_span": true,
+  "span_frac": -15.0
+ },
+ "level3": {
+  "hi": 0.5,
+  "lo": 0.15,
+  "q_base": 0.75,
+  "merge_gap": 30.0,
+  "merge_rel": 1.0,
+  "pad": 0.5,
+  "smooth": 3,
+  "min_dur": 1.5,
+  "relative": true,
+  "gate": 0.5,
+  "max_events": 0,
+  "single_span": true,
+  "span_frac": 0.9
+ }
+}

@@ -48,6 +48,12 @@ ENCODER_ID = os.environ.get("AHC_ENCODER", "google/siglip2-base-patch16-224")
 # embeddings. Costs 5x encode; still well above real time.
 TILES = int(os.environ.get("AHC_TILES", "1"))
 
+# View averaging: encode the full frame plus a grid of crops and AVERAGE the
+# embeddings instead of concatenating them. Keeps the dimension unchanged, so
+# existing heads work without retraining, while a zoomed crop still contributes
+# signal from small objects that a downsized full frame loses.
+VIEW_AVG = int(os.environ.get("AHC_VIEW_AVG", "1"))
+
 # Zero-shot text prompts, used as a prior and as a cold-start fallback before
 # the head is trained. Several phrasings per class, averaged in embedding space.
 PROMPTS = {

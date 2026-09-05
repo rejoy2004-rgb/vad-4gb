@@ -31,6 +31,13 @@ def list_test_videos() -> list[tuple[str, str, str]]:
     return [(v.stem, "unknown", str(v)) for v in sorted((TEST / "videos").glob("*.mp4"))]
 
 
+def _decode_scale(encoder) -> int:
+    """Decode at a larger size when the encoder will cut crops from the frame."""
+    if encoder.tiles > 1:
+        return encoder.tiles
+    return 2 if getattr(encoder, "view_avg", 1) > 1 else 1
+
+
 def _decode(path: str, out_size: int, tiles: int = 1):
     ts, frames = [], []
     for t, f in sample_frames(path, FPS, MAX_FRAMES, out_size=out_size, tiles=tiles):
@@ -47,7 +54,7 @@ def extract(items, out_path, encoder: Encoder, workers: int = 4, batch_size: int
     def _producer(shard):
         for vid, _cls, path in shard:
             try:
-                q.put((vid, *_decode(path, encoder.size, encoder.tiles)))
+                q.put((vid, *_decode(path, encoder.size, _decode_scale(encoder))))
             except Exception as exc:  # a corrupt file must not kill the run
                 print(f"  decode failed {vid}: {exc}")
                 q.put((vid, np.zeros(0, np.float32), []))

@@ -70,6 +70,13 @@ videos stay silent, since a false alarm there scores zero. *(L2 +0.12, L3 +0.10)
 classify each detected span, instead of pooling window votes, fixed whole
 videos at once. *(L3 0.296 -> 0.414)*
 
+**Binary discriminators for the pairs that actually get confused.** A 12-way
+head spends its capacity separating everything from everything; a binary head
+trained on one confusable pair sees far more of its decision boundary. Six
+pairs were kept, each only if it beat its majority-class baseline: fighting vs
+loitering reaches 1.000, accident vs wrong-way 0.966, accident vs congestion
+0.994. Worth **+1.7 marks** on D1. *(`ahc/pairwise.py`)*
+
 **Annotation granularity beat every tuned threshold.** Overlap is scored
 against the **whole** ground-truth span. Several short windows inside one long
 annotated event each fall under the 0.5 IoU gate and score nothing. Collapsing
@@ -180,6 +187,16 @@ Kept here because the negative results were expensive to obtain:
   **zero-shot prompt fusion** (23% alone, no reliable lift): no gain.
 - **Emitting more D3 intervals.** The opposite of what the rules prescribe;
   precision fell 32% -> 23% for nothing.
+- **Multi-crop view averaging** (`AHC_VIEW_AVG`). Encoding centre/quadrant crops
+  alongside the full frame and averaging the embeddings was monotonically
+  negative on D1: 17.19 -> 14.26 (2 views) -> 10.94 (5 views) marks. The heads
+  and centroids are trained on single-view embeddings, so changing the input
+  distribution costs more than the extra detail gains.
+- **Higher sampling rate** (`AHC_FPS`). Also monotonically negative on D1:
+  17.19 at 2 fps -> 16.15 at 4 fps -> 14.45 at 8 fps, for the same reason.
+- **Dropping the window head from the D1 vote.** Slightly better on the practice
+  pack (17.19 vs 16.99) and a broad plateau rather than a spike, but it measured
+  marginally worse on the private set (13.9 vs 14.1). Reverted.
 
 ## Known limitations
 

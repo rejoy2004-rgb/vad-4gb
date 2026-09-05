@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from .config import ENCODER_ID, CLASSES, PROMPTS, TILES
+from .config import ENCODER_ID, CLASSES, PROMPTS, TILES, VIEW_AVG
 
 
 def _as_tensor(out):
@@ -25,7 +25,7 @@ def _as_tensor(out):
 
 class Encoder:
     def __init__(self, model_id: str = ENCODER_ID, device: str | None = None,
-                 tiles: int = TILES):
+                 tiles: int = TILES, view_avg: int = VIEW_AVG):
         from transformers import AutoModel, AutoProcessor
 
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -42,6 +42,7 @@ class Encoder:
         self.mean = np.array(ip.image_mean, dtype=np.float32).reshape(1, 3, 1, 1)
         self.std = np.array(ip.image_std, dtype=np.float32).reshape(1, 3, 1, 1)
         self.tiles = max(1, tiles)
+        self.view_avg = max(1, view_avg)
         base = self.model.config.text_config.hidden_size
         # tiled mode concatenates max- and mean-pooled views
         self.dim = base * 2 if self.tiles > 1 else base
@@ -84,6 +85,8 @@ class Encoder:
             return np.zeros((0, self.dim), dtype=np.float32)
         if self.tiles > 1:
             return self._encode_tiled(frames, batch_size)
+        if self.view_avg > 1:
+            return self._encode_view_avg(frames, batch_size)
         chunks = []
         for i in range(0, len(frames), batch_size):
             px = self._preprocess(frames[i : i + batch_size])
@@ -91,6 +94,45 @@ class Encoder:
             feats = feats / feats.norm(dim=-1, keepdim=True)
             chunks.append(feats.float().cpu().numpy())
         return np.concatenate(chunks, axis=0)
+
+    @torch.no_grad()
+    def _encode_view_avg(self, frames, batch_size):
+        """Average embeddings over the full frame plus centre/quadrant crops.
+
+        Dimension is unchanged, so heads trained on single-view embeddings still
+        apply. view_avg=2 adds a centre crop; 5 adds the four quadrants.
+        """
+        import cv2
+
+        s = self.size
+        views = []
+        for f in frames:
+            h, w = f.shape[:2]
+            out = [cv2.resize(f, (s, s), interpolation=cv2.INTER_AREA)]
+            cy, cx = h // 4, w // 4
+            out.append(cv2.resize(f[cy:h - cy, cx:w - cx], (s, s),
+                                  interpolation=cv2.INTER_AREA))
+            if self.view_avg >= 5:
+                for r in range(2):
+                    for c in range(2):
+                        crop = f[r * h // 2:(r + 1) * h // 2,
+                                 c * w // 2:(c + 1) * w // 2]
+                        out.append(cv2.resize(crop, (s, s),
+                                              interpolation=cv2.INTER_AREA))
+            views.append(out[: self.view_avg])
+
+        n_views = len(views[0])
+        flat = [v for vs in views for v in vs]
+        embs = []
+        for i in range(0, len(flat), batch_size):
+            px = self._preprocess(flat[i : i + batch_size])
+            fe = _as_tensor(self.model.get_image_features(pixel_values=px))
+            fe = fe / fe.norm(dim=-1, keepdim=True)
+            embs.append(fe.float().cpu().numpy())
+        E = np.concatenate(embs, axis=0).reshape(len(frames), n_views, self.base_dim)
+        m = E.mean(axis=1)
+        m /= np.linalg.norm(m, axis=1, keepdims=True) + 1e-9
+        return m.astype(np.float32)
 
     @torch.no_grad()
     def _encode_tiled(self, frames, batch_size):
