@@ -99,6 +99,65 @@ def load_pairwise(path=None, device=None):
     return out or None
 
 
+def collapse_to_span(events, duration, params, clip_head, E):
+    """Replace a video's events with one span, classified over the whole clip.
+
+    Keeps the strongest detection's class if the clip head is unavailable. The
+    span is centred on the detected activity and widened to span_frac of the
+    duration, because the ground truth for a recurring anomaly is annotated as
+    one continuous interval.
+    """
+    lo0 = min(e["start_time_sec"] for e in events)
+    hi0 = max(e["end_time_sec"] for e in events)
+    if params.span_frac < 0:
+        # keep the single strongest continuous detection and widen it by the
+        # stated boundary tolerance; "one event per continuous anomaly" applied
+        # to the dominant region rather than to the whole clip
+        best = max(events, key=lambda e: (e.get("_score", 0.0),
+                                          e["end_time_sec"] - e["start_time_sec"]))
+        margin = abs(params.span_frac)
+        s = max(0.0, best["start_time_sec"] - margin)
+        t = (min(duration, best["end_time_sec"] + margin) if duration
+             else best["end_time_sec"] + margin)
+        cls = best["class_name"]
+        if clip_head is not None and len(E):
+            q = clip_probs(clip_head, E)
+            cls = CLASSES[int(q[1:].argmax()) + 1]
+        return [{"class_name": cls, "start_time_sec": round(s, 2),
+                 "end_time_sec": round(t, 2), "_score": best.get("_score", 0.0)}]
+    if params.span_frac == 0:
+        # span the detected extent itself: right shape when the event occupies
+        # a portion of the clip with ordinary activity either side
+        s = max(0.0, lo0)
+        t = min(duration, hi0) if duration else hi0
+        cls = max(events, key=lambda e: e.get("_score", 0.0))["class_name"]
+        if clip_head is not None and len(E):
+            sel_all = clip_probs(clip_head, E)
+            cls = CLASSES[int(sel_all[1:].argmax()) + 1]
+        return [{"class_name": cls, "start_time_sec": round(s, 2),
+                 "end_time_sec": round(t, 2),
+                 "_score": max(e.get("_score", 0.0) for e in events)}]
+    if duration and duration > 0:
+        want = min(duration, params.span_frac * duration)
+        lo = min(e["start_time_sec"] for e in events)
+        hi = max(e["end_time_sec"] for e in events)
+        mid = 0.5 * (lo + hi)
+        s = max(0.0, mid - want / 2)
+        t = min(duration, s + want)
+        s = max(0.0, t - want)
+    else:
+        s = min(e["start_time_sec"] for e in events)
+        t = max(e["end_time_sec"] for e in events)
+
+    cls = max(events, key=lambda e: e.get("_score", 0.0))["class_name"]
+    if clip_head is not None and len(E):
+        p = clip_probs(clip_head, E)
+        cls = CLASSES[int(p[1:].argmax()) + 1]
+    return [{"class_name": cls, "start_time_sec": round(s, 2),
+             "end_time_sec": round(t, 2),
+             "_score": max(e.get("_score", 0.0) for e in events)}]
+
+
 @torch.no_grad()
 def refine_pair(pairwise, probs, idx, E):
     """If the top two classes are a known confusable pair and the head is not
@@ -300,6 +359,8 @@ def predict_video(vid, path, level, model, mu, sd, device, params, encoder=None,
         events = (decode_level1(P, params) if level == 1
                   else decode_temporal(P, spans, params, duration,
                                        make_classifier(clip_head, E, ts)))
+        if level > 1 and params.single_span and events:
+            events = collapse_to_span(events, duration, params, clip_head, E)
     stats["head_ms"] = (time.perf_counter() - t0) * 1000
 
     if explainer is not None and events and len(emb):

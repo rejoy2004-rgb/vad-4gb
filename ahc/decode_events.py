@@ -17,7 +17,8 @@ class DecodeParams:
     def __init__(self, hi=0.55, lo=0.35, gate=0.55, merge_gap=3.0, min_dur=1.5,
                  pad=0.5, smooth=3, l1_bias=0.0, topk_frac=0.25,
                  relative=True, q_base=0.5, max_events=0, merge_rel=0.0,
-                 w_window=0.0, w_zeroshot=0.0):
+                 w_window=0.0, w_zeroshot=0.0, single_span=False,
+                 span_frac=1.0):
         self.hi = hi              # start a segment
         self.lo = lo              # extend a segment
         self.gate = gate          # nothing at all below this peak (absolute)
@@ -37,6 +38,13 @@ class DecodeParams:
         # optional level-1 ensemble weights (clip head takes the remainder)
         self.w_window = w_window
         self.w_zeroshot = w_zeroshot
+        # The arena scores overlap against the WHOLE annotated span: where an
+        # anomaly recurs through a clip the ground truth is one long event, and
+        # several short windows inside it each fall under the 0.5 gate and score
+        # nothing. single_span collapses a video to one event covering
+        # span_frac of its duration.
+        self.single_span = single_span
+        self.span_frac = span_frac
 
     def as_dict(self):
         return dict(vars(self))

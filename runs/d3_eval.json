@@ -1,0 +1,13 @@
+{
+ "hi": 0.4,
+ "lo": 0.15,
+ "q_base": 0.5,
+ "merge_gap": 5.0,
+ "merge_rel": 0.0,
+ "pad": 2.0,
+ "min_dur": 5.0,
+ "max_events": 4,
+ "relative": true,
+ "gate": 0.5,
+ "smooth": 3
+}

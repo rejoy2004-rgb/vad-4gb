@@ -1,0 +1,678 @@
+{
+ "schema_version": "1.0",
+ "submission_id": "ahc-vad-4gb-eval",
+ "model_name": "frozen SigLIP + window head (where) + clip head (what)",
+ "run_metadata": {
+  "total_wall_time_ms": 135918.2,
+  "max_parallel_videos": 1,
+  "hardware": "1x RTX 3050 Laptop 4GB"
+ },
+ "predictions": [
+  {
+   "video_id": "E001",
+   "events": [
+    {
+     "class_name": "waterlogging_or_flood",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "Flooding or waterlogging is visible from an aerial viewpoint."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 12,
+    "chunks_processed": 3,
+    "end_to_end_internal_time_ms": 1164.8,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 874.4,
+      "average_time_ms": 874.4
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E002",
+   "events": [],
+   "runtime_metadata": {
+    "frames_processed": 10,
+    "chunks_processed": 2,
+    "end_to_end_internal_time_ms": 131.3,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 67.2,
+      "average_time_ms": 67.2
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E003",
+   "events": [],
+   "runtime_metadata": {
+    "frames_processed": 37,
+    "chunks_processed": 9,
+    "end_to_end_internal_time_ms": 453.2,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 270.5,
+      "average_time_ms": 270.5
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E004",
+   "events": [
+    {
+     "class_name": "traffic_accident",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "An SUV traveling straight from the bottom of the frame strikes a black sedan in a severe T-bone collision at the center of the intersection. The collision occurs because the black sedan attempted a left turn without yielding the right-of-way to the oncoming SUV. The force of the impact causes the SUV to be pushed toward the right side of the frame while the sedan is violently deflected."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 12,
+    "chunks_processed": 3,
+    "end_to_end_internal_time_ms": 243.3,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 80.7,
+      "average_time_ms": 80.7
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E005",
+   "events": [],
+   "runtime_metadata": {
+    "frames_processed": 15,
+    "chunks_processed": 3,
+    "end_to_end_internal_time_ms": 204.4,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 87.7,
+      "average_time_ms": 87.7
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E006",
+   "events": [
+    {
+     "class_name": "traffic_congestion",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "Dense or queued traffic is visible from an aerial viewpoint."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 12,
+    "chunks_processed": 3,
+    "end_to_end_internal_time_ms": 262.9,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 73.3,
+      "average_time_ms": 73.3
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E007",
+   "events": [],
+   "runtime_metadata": {
+    "frames_processed": 31,
+    "chunks_processed": 7,
+    "end_to_end_internal_time_ms": 539.2,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 207.8,
+      "average_time_ms": 207.8
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E008",
+   "events": [],
+   "runtime_metadata": {
+    "frames_processed": 16,
+    "chunks_processed": 4,
+    "end_to_end_internal_time_ms": 259.0,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 112.7,
+      "average_time_ms": 112.7
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E009",
+   "events": [
+    {
+     "class_name": "fire",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "Active fire and flames are visible from an aerial viewpoint."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 12,
+    "chunks_processed": 3,
+    "end_to_end_internal_time_ms": 268.5,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 89.7,
+      "average_time_ms": 89.7
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E010",
+   "events": [
+    {
+     "class_name": "smoke",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "A large smoke plume is visible from an aerial viewpoint."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 12,
+    "chunks_processed": 3,
+    "end_to_end_internal_time_ms": 251.0,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 90.1,
+      "average_time_ms": 90.1
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E011",
+   "events": [
+    {
+     "class_name": "smoke",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "A large smoke plume is visible from an aerial viewpoint."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 12,
+    "chunks_processed": 3,
+    "end_to_end_internal_time_ms": 253.3,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 86.9,
+      "average_time_ms": 86.9
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E012",
+   "events": [
+    {
+     "class_name": "waterlogging_or_flood",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "Flooding or waterlogging is visible from an aerial viewpoint."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 12,
+    "chunks_processed": 3,
+    "end_to_end_internal_time_ms": 264.4,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 90.7,
+      "average_time_ms": 90.7
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E013",
+   "events": [
+    {
+     "class_name": "waterlogging_or_flood",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "Flooding or waterlogging is visible from an aerial viewpoint."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 12,
+    "chunks_processed": 3,
+    "end_to_end_internal_time_ms": 269.0,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 86.1,
+      "average_time_ms": 86.1
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E014",
+   "events": [
+    {
+     "class_name": "road_spill_or_debris",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "A red truck violently T-bones a blue hatchback in the middle of the intersection, generating a massive cloud of dust and debris upon impact. The collision is caused by the red truck driver failing to obey the red traffic signals facing their direction of travel, which led the truck to run the red light at a high rate of speed and strike the blue hatchback that was lawfully crossing the intersection."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 19,
+    "chunks_processed": 4,
+    "end_to_end_internal_time_ms": 263.4,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 117.7,
+      "average_time_ms": 117.7
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E015",
+   "events": [
+    {
+     "class_name": "traffic_accident",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "A traffic collision occurs."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 25,
+    "chunks_processed": 6,
+    "end_to_end_internal_time_ms": 357.1,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 171.8,
+      "average_time_ms": 171.8
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E016",
+   "events": [
+    {
+     "class_name": "traffic_accident",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "A traffic collision occurs."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 33,
+    "chunks_processed": 8,
+    "end_to_end_internal_time_ms": 482.9,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 237.1,
+      "average_time_ms": 237.1
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E017",
+   "events": [
+    {
+     "class_name": "stalled_or_broken_down_vehicle",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "An orange truck collides with a long red and white truck in a T-bone collision in the middle of the intersection. The red and white truck was already stalled diagonally across multiple lanes, creating a significant hazard; the orange truck, having recently changed lanes, failed to maintain proper situational awareness and speed control, striking the stationary vehicle and pushing it slightly to the right."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 60,
+    "chunks_processed": 15,
+    "end_to_end_internal_time_ms": 618.4,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 416.5,
+      "average_time_ms": 416.5
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E018",
+   "events": [
+    {
+     "class_name": "fighting_or_violence",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "A physical fight, assault, or violent confrontation occurs."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 60,
+    "chunks_processed": 15,
+    "end_to_end_internal_time_ms": 593.6,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 381.7,
+      "average_time_ms": 381.7
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E019",
+   "events": [
+    {
+     "class_name": "loitering_or_suspicious_presence",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "A person remains in the aerial scene for an anomalously prolonged period."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 38,
+    "chunks_processed": 9,
+    "end_to_end_internal_time_ms": 524.6,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 246.7,
+      "average_time_ms": 246.7
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E020",
+   "events": [
+    {
+     "class_name": "loitering_or_suspicious_presence",
+     "start_time_sec": null,
+     "end_time_sec": null,
+     "explanation": "A person remains in the aerial scene for an anomalously prolonged period."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 38,
+    "chunks_processed": 9,
+    "end_to_end_internal_time_ms": 438.4,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 1,
+      "total_time_ms": 241.0,
+      "average_time_ms": 241.0
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E021",
+   "events": [
+    {
+     "class_name": "wrong_way_driving",
+     "start_time_sec": 72.46,
+     "end_time_sec": 78.74,
+     "explanation": "A blue car, a white car, and a white truck travel straight in the left carriageway, while a dark car and a white truck move in the opposite direction in the right carriageway. All vehicles maintain their respective lanes and travel at steady highway speeds, following standard multi-lane highway traffic flow rules where vehicles remain within marked lanes to ensure a safe and uninterrupted progression of traffic. Observed for 6 s from 72 s."
+    },
+    {
+     "class_name": "vehicle_blocking_traffic",
+     "start_time_sec": 103.18,
+     "end_time_sec": 113.3,
+     "explanation": "A red car and a silver car travel straight along the left carriageway of the highway, maintaining a steady pace in a free-flowing environment. Both vehicles proceed forward without obstruction, adhering to the normal flow of traffic as they move away from the camera, demonstrating standard highway driving behavior in the absence of signals or congestion on this side of the median. Observed for 10 s from 103 s."
+    },
+    {
+     "class_name": "wrong_way_driving",
+     "start_time_sec": 193.42,
+     "end_time_sec": 197.78,
+     "explanation": "A blue car, a white car, and a white truck travel straight in the left carriageway, while a dark car and a white truck move in the opposite direction in the right carriageway. All vehicles maintain their respective lanes and travel at steady highway speeds, following standard multi-lane highway traffic flow rules where vehicles remain within marked lanes to ensure a safe and uninterrupted progression of traffic. Observed for 4 s from 193 s."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 500,
+    "chunks_processed": 125,
+    "end_to_end_internal_time_ms": 11086.4,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 8,
+      "total_time_ms": 3564.0,
+      "average_time_ms": 445.5
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E022",
+   "events": [
+    {
+     "class_name": "traffic_accident",
+     "start_time_sec": 97.42,
+     "end_time_sec": 107.54,
+     "explanation": "A traffic collision occurs. Observed for 10 s from 97 s."
+    },
+    {
+     "class_name": "fire",
+     "start_time_sec": 195.34,
+     "end_time_sec": 234.26,
+     "explanation": "A large red fire truck with flashing emergency lights travels straight along a lower roadway, following a white car that is positioned ahead of it. The fire truck maintains a steady pace in its lane, navigating the roadway toward the camera while its emergency beacons are active, although the surrounding traffic flow remains consistent and uninterrupted without any vehicles yielding or altering their course. Observed for 39 s from 195 s."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 500,
+    "chunks_processed": 125,
+    "end_to_end_internal_time_ms": 13145.8,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 8,
+      "total_time_ms": 3497.2,
+      "average_time_ms": 437.2
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E023",
+   "events": [
+    {
+     "class_name": "traffic_congestion",
+     "start_time_sec": 24.46,
+     "end_time_sec": 32.66,
+     "explanation": "Heavy highway traffic forms congestion. Observed for 8 s from 24 s."
+    },
+    {
+     "class_name": "traffic_congestion",
+     "start_time_sec": 76.3,
+     "end_time_sec": 115.22,
+     "explanation": "Heavy highway traffic forms congestion. Observed for 39 s from 76 s."
+    },
+    {
+     "class_name": "traffic_congestion",
+     "start_time_sec": 191.5,
+     "end_time_sec": 195.86,
+     "explanation": "Heavy highway traffic forms congestion. Observed for 4 s from 192 s."
+    },
+    {
+     "class_name": "traffic_congestion",
+     "start_time_sec": 227.98,
+     "end_time_sec": 234.26,
+     "explanation": "Heavy highway traffic forms congestion. Observed for 6 s from 228 s."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 500,
+    "chunks_processed": 125,
+    "end_to_end_internal_time_ms": 11236.4,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 8,
+      "total_time_ms": 3338.8,
+      "average_time_ms": 417.4
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E024",
+   "events": [],
+   "runtime_metadata": {
+    "frames_processed": 480,
+    "chunks_processed": 120,
+    "end_to_end_internal_time_ms": 34033.8,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 8,
+      "total_time_ms": 4280.6,
+      "average_time_ms": 535.1
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E025",
+   "events": [
+    {
+     "class_name": "stalled_or_broken_down_vehicle",
+     "start_time_sec": 0.0,
+     "end_time_sec": 360.0,
+     "explanation": "A vehicle is stopped abnormally in the roadway. Observed for 360 s from 0 s."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 720,
+    "chunks_processed": 180,
+    "end_to_end_internal_time_ms": 11389.0,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 12,
+      "total_time_ms": 4849.2,
+      "average_time_ms": 404.1
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E026",
+   "events": [
+    {
+     "class_name": "loitering_or_suspicious_presence",
+     "start_time_sec": 0.0,
+     "end_time_sec": 326.93,
+     "explanation": "A person remains in the aerial scene for an anomalously prolonged period. Observed for 327 s from 0 s."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 613,
+    "chunks_processed": 153,
+    "end_to_end_internal_time_ms": 6373.0,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 10,
+      "total_time_ms": 4166.3,
+      "average_time_ms": 416.6
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E027",
+   "events": [
+    {
+     "class_name": "traffic_accident",
+     "start_time_sec": 0.0,
+     "end_time_sec": 602.4,
+     "explanation": "A traffic collision occurs. Observed for 602 s from 0 s."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 1204,
+    "chunks_processed": 301,
+    "end_to_end_internal_time_ms": 33826.2,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 19,
+      "total_time_ms": 9083.6,
+      "average_time_ms": 478.1
+     }
+    ]
+   }
+  },
+  {
+   "video_id": "E028",
+   "events": [
+    {
+     "class_name": "loitering_or_suspicious_presence",
+     "start_time_sec": 0.0,
+     "end_time_sec": 353.07,
+     "explanation": "A person remains in the aerial scene for an anomalously prolonged period. Observed for 353 s from 0 s."
+    }
+   ],
+   "runtime_metadata": {
+    "frames_processed": 662,
+    "chunks_processed": 165,
+    "end_to_end_internal_time_ms": 6842.0,
+    "model_runtimes": [
+     {
+      "model_name": "siglip2-base-patch16-224",
+      "call_count": 11,
+      "total_time_ms": 4517.5,
+      "average_time_ms": 410.7
+     }
+    ]
+   }
+  }
+ ]
+}
