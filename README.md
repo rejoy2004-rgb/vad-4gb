@@ -79,13 +79,17 @@ windows only; the retrieval explainer occupies that slot today.
 | `ahc/video.py` | frame sampling (sequential grab/retrieve, no seeking) |
 | `ahc/encoder.py` | frozen SigLIP wrapper, fp16, batched |
 | `ahc/extract.py` | one-pass embedding cache (threaded decode → GPU) |
+| `ahc/labels.py` | training annotations (torch-free, safe to load during extraction) |
 | `ahc/features.py` | window construction and summary statistics |
+| `ahc/centroids.py` | class prototypes from real footage (61% vs 23% for text prompts) |
 | `ahc/train_head.py` | window classifier ("where"), split by video to avoid leakage |
 | `ahc/train_clip_head.py` | clip classifier ("what"), temporal-crop augmented, seed ensemble |
 | `ahc/decode_events.py` | probabilities → events |
 | `ahc/tune.py` | grid search over the decoder |
 | `ahc/infer.py` | end-to-end run, writes submission JSON |
 | `ahc/score.py` | local re-implementation of the arena metric |
+| `ahc/pairwise.py` | binary discriminators for the measured confusable pairs |
+| `ahc/explain_vlm.py` | SmolVLM explanations, triggered spans only |
 | `ahc/validate.py` | checks a submission against the arena's field rules before upload |
 | `make_deck.py` | builds the 2-slide submission deck and its charts |
 
@@ -104,6 +108,28 @@ python -m ahc.score runs/submission.json --per-video
 
 `--live` decodes and encodes for real and reports true wall-clock timings in
 `runtime_metadata`. Drop it to reuse the cache while tuning.
+
+### Variants
+
+Four environment variables switch configuration without disturbing a working
+setup, so an alternative can be built end to end and compared:
+
+```bash
+AHC_ENCODER=google/siglip-large-patch16-256 AHC_CACHE=cache_large AHC_RUNS=runs_large   python -m ahc.extract --split both        # stronger encoder, 35 fps vs 78
+
+AHC_TILES=2 AHC_CACHE=cache_tiled python -m ahc.extract --split both
+AHC_FPS=4 AHC_CACHE=cache_4fps  python -m ahc.extract --split test
+```
+
+`AHC_TILES=2` encodes the full frame plus a 2x2 grid of crops and pools across
+views with both max and mean. Max-pooling is the point: a tile holding only the
+debris scores high on that dimension even when the whole frame does not, which
+is aimed at the small-object classes (`road_spill_or_debris`,
+`vehicle_blocking_traffic`, `stalled_or_broken_down_vehicle`) that the arena
+reports as 0% found.
+
+Extraction checkpoints every 250 videos and resumes from
+`<split>_emb.npz.partial.npz`, so a crash an hour in does not cost the run.
 
 ## Known limitations
 
