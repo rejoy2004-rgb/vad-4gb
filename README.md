@@ -1,109 +1,146 @@
-# AHC Visual Intelligence Hackathon — near-real-time video anomaly detection
+# Video anomaly detection on a 4 GB laptop GPU
 
-Detects the 11 anomaly classes in drone / CCTV / dashcam footage, in real time,
-on a **4 GB laptop GPU** (RTX 3050 Laptop).
+AHC Visual Intelligence Hackathon. Detects the 11 anomaly classes in drone,
+CCTV and dashcam footage in real time, on an RTX 3050 Laptop with **4 GB of
+VRAM**.
+
+## Results
+
+**Private evaluation set** (28 videos: D1 20, D2 4, D3 4):
 
 | | D1 (25 marks) | D2 (35 marks) | D3 (40 marks) | Total |
 | --- | --- | --- | --- | --- |
-| Correct | 63.7% | 70.3% | 50.4% | |
-| Marks | 15.9 | 24.6 | 20.2 | **60.7 / 100** |
+| Correct | 56.2% | 51.0% | 57.0% | |
+| Marks | 14.1 | 17.9 | 22.8 | **54.8 / 100** |
 
-Arena-scored, public test set. An oracle search over ~15,000 decoder
-configurations, taking each video at its own best setting, tops out near 61 -
-the decoder is at its ceiling and the encoder is the binding constraint.
+**Speed**: 2,840 s of evaluation video processed in 136 s — **20.9x real time**
+end to end, decoding included — at 1.03 GB peak VRAM. On the practice pack,
+3,391 s in 167 s (20.3x).
 
-3,391 s of video processed in 167 s end to end — **20.3x real time**, decode
-included — at 1.03 GB peak VRAM. For scale, predicting `normal` everywhere
-scores 0.167 and calling every clip anomalous scores 0.293.
+The practice pack (34 videos) scored 60.7/100 with a decoder tuned against it.
+That same decoder scored **39.9** on the private set. The gap, and closing most
+of it, is the most useful thing in this repo — see *What actually moved the
+score*.
 
 Architecture write-up: <https://claude.ai/code/artifact/dd560d94-f263-488f-a9e5-2e1cfe1ab9c4>
 
 ## Approach
 
-The hard constraint here was 4 GB of VRAM. That rules out fine-tuning a 2B-class
-VLM locally, so instead of training a VLM we **freeze one and train only what
-sits on top of it**:
+4 GB rules out fine-tuning a 2B-parameter VLM locally, so instead of training a
+VLM we **froze one and trained only what sits on top of it**:
 
 ```
-video ──► frame sampling ──► SigLIP-2 image encoder ──► window features ──► MLP head ──► event decoder ──► JSON
-          (2 fps, OpenCV)     (frozen, fp16, ~1 GB)     (mean/max/std/drift)  (12-way)    (hysteresis)
+video -> sample 2 fps -> SigLIP-2 base -> 4 s windows -> two MLP heads -> decoder -> JSON
+         downsize on     FROZEN, fp16    mean/max/std   window: WHERE    hysteresis
+         decode          78 fps, 1.03 GB /drift         clip:   WHAT     + span rules
 ```
 
-1. **Sampling** — 2 fps. An accident lasts about a second, so this is roughly the
-   floor before events are stepped over entirely.
-2. **Encoder** — `google/siglip2-base-patch16-224`, frozen, fp16. Open-vocabulary
-   semantics without an open-vocabulary price tag: **78 fps, 1.03 GB VRAM**.
-   Because it is frozen, every video is encoded **once** into a cache and every
-   later experiment reads embeddings instead of pixels.
-3. **Window features** — one decision per 4 s window (2 s hop). Each window is
-   summarised by mean / max / std / adjacent-frame drift plus scalar motion
-   terms. The temporal half of that is what distinguishes congestion from a busy
-   road, and loitering from someone walking past — a single frame cannot.
-4. **Two heads, two questions** — a *window head* (3-layer MLP over window
-   features) answers **where** something happens; a *clip head*, trained on whole
-   clips with random temporal crops, answers **what** it is. The clip head both
-   decides Level 1 and classifies each span the window head flags. Each trains in
-   under a minute, which is what makes same-day iteration possible.
-5. **Decoder** — hysteresis segmentation over the anomaly score, scored
-   **relative to each video's own baseline** rather than a global threshold, then
-   merge, minimum duration, and an absolute silence gate. Tuned against a local
-   re-implementation of the arena metric.
+1. **Sampling** — 2 fps. An accident lasts about a second, so this is roughly
+   the floor before events are stepped over entirely. Frames are downsized
+   during decode: a 10-minute 1080p video at 2 fps is ~9 GB of full-resolution
+   frames but only ~180 MB at 224x224.
+2. **Encoder** — `google/siglip2-base-patch16-224`, frozen, fp16. Because it is
+   frozen, all 3,207 videos are embedded **once** into a cache, so every later
+   experiment reads embeddings instead of pixels and a head retrains in under a
+   minute. That is what made same-day iteration possible.
+3. **Two heads, two questions** — a *window head* answers **where** something
+   happens; a *clip head*, trained on whole clips with random temporal crops,
+   answers **what** it is. The clip head decides Difficulty 1 outright and
+   classifies each span the window head flags. Both are seed ensembles.
+4. **Decoder** — hysteresis segmentation over the anomaly score, thresholded
+   **relative to each video's own baseline**, then merged into the span shape
+   each difficulty tier actually expects.
 
-The relative-scoring step is the single biggest win (L2 +0.12, L3 +0.10). The
-head is trained on short clips where the event fills the clip, so on long footage
-it reports a high, roughly constant pedestal — baselines ranged 0.55 to 0.88
-across videos, and no absolute threshold transfers across that. What localises an
-event is the rise above the video's own median. The absolute gate is kept in
-front of it so genuinely normal videos stay silent, since a false alarm there
-scores zero.
-
-**Explanations** are produced by nearest-neighbour retrieval over training
+**Explanations** come from nearest-neighbour retrieval over training
 `description_summary` text in the same embedding space — one dot product per
 event, no generative model, no extra VRAM.
 
-## Why not a VLM at runtime
+## What actually moved the score
 
-A small VLM was the obvious starting point and is the wrong tool for the
-always-on stage: it costs orders of magnitude more per frame for a decision that
-is, in the end, a 12-way classification. The frozen-encoder split keeps the
-open-vocabulary semantics of a VLM in the part that runs on every frame, and
-puts the learned, task-specific part in a head small enough to retrain in
-seconds. The design leaves room for a heavier verification stage on triggered
-windows only; the retrieval explainer occupies that slot today.
+**Score against each video's own baseline.** Trained on short clips where the
+event fills the frame, the head reports a high, roughly constant pedestal on
+long footage — baselines ranged 0.55 to 0.88 across videos, so no absolute
+threshold transfers. Thresholding on the *rise above each video's own median*
+found the events. An absolute gate is kept in front of it so genuinely normal
+videos stay silent, since a false alarm there scores zero. *(L2 +0.12, L3 +0.10)*
+
+**Use each head for the question it was trained on.** Letting the clip head
+classify each detected span, instead of pooling window votes, fixed whole
+videos at once. *(L3 0.296 -> 0.414)*
+
+**Annotation granularity beat every tuned threshold.** Overlap is scored
+against the **whole** ground-truth span. Several short windows inside one long
+annotated event each fall under the 0.5 IoU gate and score nothing. Collapsing
+a video to a single span lifted D3 from 8.0 to 22.8 marks and the total from
+39.9 to 54.8 — after ~15,000 tuned decoder configurations had barely moved it.
+
+The span shape is per tier, because the tiers differ:
+
+| Tier | Description | Span rule |
+| --- | --- | --- |
+| D1 | short clips, timing not scored | one label, `null` timestamps |
+| D2 | event is a portion, ordinary activity either side, 15 s tolerance | one interval on the strongest detection |
+| D3 | long footage, anomaly recurs throughout | one span covering the video |
+
+Applying the D3 rule to D2 *cost* marks (17.9 -> 14.0), which is why it is per
+tier rather than global.
+
+## Calibrating the metric
+
+The arena returned 62.0% on D1 where an even anomaly/class split predicts
+75.0%. Refitting against that showed **class accuracy carries roughly four
+times the weight of anomaly accuracy** there — we had been tuning a detector
+that was already right 23 times out of 24 while ignoring the class errors that
+actually cost marks. After recalibration `ahc/score.py` reproduced the arena
+within half a mark on every tier of the practice pack.
 
 ## Layout
 
 | file | role |
 | --- | --- |
-| `ahc/config.py` | paths, label set, zero-shot prompt bank |
-| `ahc/video.py` | frame sampling (sequential grab/retrieve, no seeking) |
-| `ahc/encoder.py` | frozen SigLIP wrapper, fp16, batched |
-| `ahc/extract.py` | one-pass embedding cache (threaded decode → GPU) |
-| `ahc/labels.py` | training annotations (torch-free, safe to load during extraction) |
+| `ahc/config.py` | paths, label set, prompt bank, env overrides |
+| `ahc/labels.py` | training annotations (torch-free) |
+| `ahc/video.py` | frame sampling, downsize-on-decode, optional tiling |
+| `ahc/encoder.py` | frozen SigLIP wrapper, fp16, batched, optional tiled views |
+| `ahc/extract.py` | one-pass embedding cache, checkpointed every 250 videos |
+| `ahc/extract_eval.py` | same for the private evaluation pack |
 | `ahc/features.py` | window construction and summary statistics |
-| `ahc/centroids.py` | class prototypes from real footage (61% vs 23% for text prompts) |
-| `ahc/train_head.py` | window classifier ("where"), split by video to avoid leakage |
-| `ahc/train_clip_head.py` | clip classifier ("what"), temporal-crop augmented, seed ensemble |
-| `ahc/decode_events.py` | probabilities → events |
+| `ahc/centroids.py` | class prototypes from real footage (61% vs 23% for prompts) |
+| `ahc/train_head.py` | window classifier — *where* |
+| `ahc/train_clip_head.py` | clip classifier — *what*, temporal-crop augmented |
+| `ahc/pairwise.py` | binary discriminators for measured confusable pairs |
+| `ahc/decode_events.py` | probabilities to events, span rules |
 | `ahc/tune.py` | grid search over the decoder |
-| `ahc/infer.py` | end-to-end run, writes submission JSON |
+| `ahc/diagnose.py` | per-video ranking AUC and saturation |
+| `ahc/infer.py` | end-to-end run on the practice pack |
+| `ahc/run_eval.py` | end-to-end run on the private evaluation pack |
 | `ahc/score.py` | local re-implementation of the arena metric |
-| `ahc/pairwise.py` | binary discriminators for the measured confusable pairs |
-| `ahc/explain_vlm.py` | SmolVLM explanations, triggered spans only |
-| `ahc/validate.py` | checks a submission against the arena's field rules before upload |
+| `ahc/validate.py` | checks a submission against every field rule |
+| `ahc/explain_vlm.py` | optional SmolVLM explanations, triggered spans only |
 | `make_deck.py` | builds the 2-slide submission deck and its charts |
+| `run_experiments.sh` | unattended experiment queue |
 
 ## Running it
 
 ```bash
 python -m ahc.extract --split both --workers 6      # once, populates cache/
+python -m ahc.centroids                             # class prototypes
 python -m ahc.build_desc_bank
-python -m ahc.train_head --epochs 30                # window head: where
+python -m ahc.train_head --epochs 30 --seeds 5      # window head: where
 python -m ahc.train_clip_head --epochs 40 --seeds 3 # clip head: what
+python -m ahc.pairwise --epochs 60                  # confusable-pair heads
 python -m ahc.tune                                  # -> runs/params.json
-python -m ahc.infer --params runs/params.json --explain --live --out runs/submission.json
-python -m ahc.validate runs/submission.json         # before uploading
+
+# practice pack
+python -m ahc.infer --params runs/params_fa.json --explain --live \
+    --manifest manifest.json --out runs/submission.json
 python -m ahc.score runs/submission.json --per-video
+
+# private evaluation pack
+python -m ahc.extract_eval
+python -m ahc.run_eval --params runs/params_best.json --explain \
+    --out runs/eval_submission.json
+python -m ahc.validate runs/eval_submission.json --manifest eval/manifest_eval.json
 ```
 
 `--live` decodes and encodes for real and reports true wall-clock timings in
@@ -111,37 +148,49 @@ python -m ahc.score runs/submission.json --per-video
 
 ### Variants
 
-Four environment variables switch configuration without disturbing a working
-setup, so an alternative can be built end to end and compared:
+Environment variables switch configuration without disturbing a working setup:
 
 ```bash
-AHC_ENCODER=google/siglip-large-patch16-256 AHC_CACHE=cache_large AHC_RUNS=runs_large   python -m ahc.extract --split both        # stronger encoder, 35 fps vs 78
-
+AHC_ENCODER=google/siglip-large-patch16-256 AHC_CACHE=cache_large \
+AHC_RUNS=runs_large python -m ahc.extract --split both
 AHC_TILES=2 AHC_CACHE=cache_tiled python -m ahc.extract --split both
-AHC_FPS=4 AHC_CACHE=cache_4fps  python -m ahc.extract --split test
+AHC_FPS=4  AHC_CACHE=cache_4fps  python -m ahc.extract --split test
 ```
 
 `AHC_TILES=2` encodes the full frame plus a 2x2 grid of crops and pools across
-views with both max and mean. Max-pooling is the point: a tile holding only the
-debris scores high on that dimension even when the whole frame does not, which
-is aimed at the small-object classes (`road_spill_or_debris`,
-`vehicle_blocking_traffic`, `stalled_or_broken_down_vehicle`) that the arena
-reports as 0% found.
+views with max and mean. Max-pooling is the point: a tile holding only the
+debris scores high even when the whole frame does not.
 
-Extraction checkpoints every 250 videos and resumes from
-`<split>_emb.npz.partial.npz`, so a crash an hour in does not cost the run.
+## Measured and rejected
+
+Kept here because the negative results were expensive to obtain:
+
+- **A larger encoder.** `siglip-large-patch16-256` raised ranking AUC (0.73 vs
+  0.68) but *lost* marks: L2 collapsed 0.677 -> 0.519, estimate 49.1 against
+  base 59.0. Higher AUC did not convert.
+- **Contrast-to-baseline features.** Held-out training accuracy rose to 0.869,
+  but ranking AUC on long test videos collapsed (T026 0.663 -> 0.268, T034
+  0.857 -> 0.532). In a short training clip the window *is* the whole video, so
+  the cue does not exist at test time. Kept in `features.py`, off by default.
+- **In-scene hard negatives.** Monotonically negative: weight 1.0 -> AUC
+  0.7334, 3.0 -> 0.7300, 10.0 -> 0.6922.
+- **Logit adjustment for rare classes**, **test-time augmentation**, and
+  **zero-shot prompt fusion** (23% alone, no reliable lift): no gain.
+- **Emitting more D3 intervals.** The opposite of what the rules prescribe;
+  precision fell 32% -> 23% for nothing.
 
 ## Known limitations
 
-- The decoder is tuned on 6 Level-2 and 4 Level-3 public videos. That is a thin
-  basis for threshold selection; the search is coarse and ties break toward the
-  least aggressive setting for that reason.
-- The local scorer matches the published structure of the metric, but the arena's
-  exact weighting of the Level-2/3 mix is not published. It is reliable for
-  ranking configurations, not for predicting the leaderboard number.
-- Class confusion, not localisation, is the dominant remaining error. On T025 the
-  intervals land almost exactly on the six true accidents and still score 0.300,
-  because both heads independently call the footage `wrong_way_driving`. The
-  Level-1 losses are similarly adjacent pairs: smoke/fire, fighting/loitering.
-- Tried and dropped: larger SigLIP variants (segfault on load at 4 GB), zero-shot
-  prompt fusion (0.292 alone, no reliable lift), one shared decoder for all tiers.
+- **Class accuracy is the binding constraint.** `stalled_or_broken_down_vehicle`,
+  `road_spill_or_debris`, `vehicle_blocking_traffic` and `wrong_way_driving` are
+  all at 0% found on the evaluation set. No timing change fixes a wrong label.
+- **Saturation on long footage.** On several videos `p(normal)` never exceeds
+  0.02 for the entire clip, so the anomaly score carries no temporal
+  information and localisation is luck. The root cause is training on short
+  clips where the event fills the frame; the fix is training on long footage
+  with in-scene negatives, which is a rebuild rather than a tweak.
+- **Thresholds tuned on few videos do not transfer.** 60.7 on the practice pack
+  became 39.9 on the private set.
+- The local scorer matches the published structure of the metric; the exact
+  within-tier weighting is not published, so it ranks configurations rather
+  than predicting the leaderboard.
