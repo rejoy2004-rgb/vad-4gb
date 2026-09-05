@@ -22,7 +22,9 @@ That same decoder scored **39.9** on the private set. The gap, and closing most
 of it, is the most useful thing in this repo — see *What actually moved the
 score*.
 
-Architecture write-up: <https://claude.ai/code/artifact/dd560d94-f263-488f-a9e5-2e1cfe1ab9c4>
+Architecture write-up: [`architecture.html`](architecture.html) — pipeline
+diagram, per-frame vs per-window vs per-event cost, and the timeline
+comparisons behind the findings below.
 
 ## Approach
 
