@@ -293,8 +293,8 @@
   </p>
   <div class="stats">
     <div>
-      <div class="stat-n sig">59.5<span style="font-size:.55em"> / 100</span></div>
-      <div class="stat-l">Projected marks · public test</div>
+      <div class="stat-n sig">60.7<span style="font-size:.55em"> / 100</span></div>
+      <div class="stat-l">Arena score · public test</div>
     </div>
     <div>
       <div class="stat-n">20.3&times;</div>
@@ -653,24 +653,23 @@
   <div class="tbl-wrap" style="max-width:none">
     <table>
       <thead>
-        <tr><th>Configuration</th><th class="n">L1</th><th class="n">L2</th><th class="n">L3</th><th class="n">Overall</th></tr>
+        <tr><th>Submitted run</th><th class="n">D1 / 25</th><th class="n">D2 / 35</th><th class="n">D3 / 40</th><th class="n">Total</th></tr>
       </thead>
       <tbody>
-        <tr><td>Window head, absolute thresholds</td><td class="n">0.688</td><td class="n">0.533</td><td class="n">0.200</td><td class="n">0.474</td></tr>
-        <tr><td>+ per-video relative scoring</td><td class="n">0.688</td><td class="n">0.658</td><td class="n">0.296</td><td class="n">0.547</td></tr>
-        <tr><td>+ clip head decides Level 1</td><td class="n">0.729</td><td class="n">0.658</td><td class="n">0.296</td><td class="n">0.561</td></tr>
-        <tr><td>+ clip head classifies spans, wider merge</td><td class="n">0.729</td><td class="n">0.674</td><td class="n">0.414</td><td class="n">0.606</td></tr>
-        <tr class="best"><td>+ 3-seed ensemble, tuning matched to runtime</td><td class="n">0.750</td><td class="n">0.674</td><td class="n">0.430</td><td class="n">0.618</td></tr>
+        <tr><td>Clip head in both roles</td><td class="n">15.5</td><td class="n">24.3</td><td class="n">18.5</td><td class="n">58.3</td></tr>
+        <tr><td>+ level-1 blend</td><td class="n">15.9</td><td class="n">24.3</td><td class="n">18.5</td><td class="n">58.7</td></tr>
+        <tr><td>+ seed ensembles, richer explanations</td><td class="n">15.9</td><td class="n">24.6</td><td class="n">18.9</td><td class="n">59.4</td></tr>
+        <tr class="best"><td>+ false-alarm cap on Difficulty 3</td><td class="n">15.9</td><td class="n">24.6</td><td class="n">20.2</td><td class="n">60.7</td></tr>
       </tbody>
     </table>
   </div>
   <p>
-    The tiers are not weighted equally: Difficulty&nbsp;1 carries 25 marks, Difficulty&nbsp;2
-    35 and Difficulty&nbsp;3 40. On that scale the run above is
-    <strong>18.8 + 23.6 + 17.2 = 59.5 marks</strong>. It also means a mark of
-    Difficulty&nbsp;3 is worth 1.6&times; a mark of Difficulty&nbsp;1 &mdash; and
-    Difficulty&nbsp;3 is both our weakest tier and the one carrying the most marks, so
-    that is where any further effort belongs.
+    These are the arena's own marks, not local estimates. Calibrating our scorer against
+    the first scored run mattered: the arena returned 62.0% on Difficulty&nbsp;1 where an
+    even anomaly/class split predicts 75.0%. Refitting shows <strong>class accuracy carries
+    roughly four times the weight of anomaly accuracy</strong> there, and we had been
+    tuning a 50/50 blend &mdash; optimising a detector that was already right 23 times out
+    of 24 while ignoring the class errors that actually cost marks.
   </p>
   <p>
     For scale: predicting <code>normal</code> everywhere scores 0.167, and declaring every
@@ -708,6 +707,17 @@
   <p class="eyebrow">Honesty</p>
   <h2>What we do not know, and what we dropped</h2>
 
+  <div class="caveat">
+    <p>
+      <strong>We measured where tuning stops paying, rather than guessing.</strong>
+      An oracle search over roughly 15,000 decoder configurations, scoring every video at
+      its own best setting, tops out near 61 marks &mdash; and we are at 60.7. Two of the
+      four Difficulty-3 videos sit <em class="term">exactly</em> at their ceiling: no
+      threshold, gap or gate in that grid matches a single one of their intervals, because
+      the anomaly score does not rank their events above the rest of the video. The
+      decoder is finished; the encoder is the wall.
+    </p>
+  </div>
   <div class="caveat">
     <p>
       <strong>The temporal thresholds are the least trustworthy part of the system.</strong>

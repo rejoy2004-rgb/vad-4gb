@@ -1,12 +1,16 @@
 """Shared configuration: paths, label set, prompt bank."""
 from pathlib import Path
 
+import os
+
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 TRAIN = DATA / "train"
 TEST = DATA / "test"
-CACHE = ROOT / "cache"
-RUNS = ROOT / "runs"
+# Overridable so a different encoder can be evaluated end to end without
+# disturbing the cache and heads of a working configuration.
+CACHE = ROOT / os.environ.get("AHC_CACHE", "cache")
+RUNS = ROOT / os.environ.get("AHC_RUNS", "runs")
 
 for _d in (CACHE, RUNS):
     _d.mkdir(parents=True, exist_ok=True)
@@ -36,7 +40,7 @@ ANOMALY_CLASSES = CLASSES[1:]
 FPS = 2.0
 MAX_FRAMES = 2048
 
-ENCODER_ID = "google/siglip2-base-patch16-224"
+ENCODER_ID = os.environ.get("AHC_ENCODER", "google/siglip2-base-patch16-224")
 
 # Zero-shot text prompts, used as a prior and as a cold-start fallback before
 # the head is trained. Several phrasings per class, averaged in embedding space.

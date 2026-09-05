@@ -5,8 +5,12 @@ on a **4 GB laptop GPU** (RTX 3050 Laptop).
 
 | | D1 (25 marks) | D2 (35 marks) | D3 (40 marks) | Total |
 | --- | --- | --- | --- | --- |
-| Score | 0.750 | 0.674 | 0.430 | 0.618 mean |
-| Marks | 18.8 | 23.6 | 17.2 | **59.5 / 100** |
+| Correct | 63.7% | 70.3% | 50.4% | |
+| Marks | 15.9 | 24.6 | 20.2 | **60.7 / 100** |
+
+Arena-scored, public test set. An oracle search over ~15,000 decoder
+configurations, taking each video at its own best setting, tops out near 61 -
+the decoder is at its ceiling and the encoder is the binding constraint.
 
 3,391 s of video processed in 167 s end to end — **20.3x real time**, decode
 included — at 1.03 GB peak VRAM. For scale, predicting `normal` everywhere
