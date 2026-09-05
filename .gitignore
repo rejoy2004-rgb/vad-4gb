@@ -1,0 +1,14 @@
+# dataset and derived artefacts - far too large for git
+data/
+cache/
+runs/*.pt
+runs/*.npz
+
+# keep the submissions and tuned parameters, they are small and reproducible
+!runs/params.json
+!runs/submission.json
+
+__pycache__/
+*.pyc
+.venv/
+.vscode/
