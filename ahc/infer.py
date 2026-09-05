@@ -148,17 +148,26 @@ def window_probs(members, mu, sd, device, feats: np.ndarray) -> np.ndarray:
     return acc / len(members)
 
 
-def load_levels(manifest=None) -> dict[str, int]:
-    """Levels come from the arena manifest; fall back to the public labels."""
+def load_manifest(manifest=None):
+    """-> (levels, durations). The arena manifest is authoritative for both;
+    using its duration rather than our own probe guarantees end_time_sec stays
+    inside the video, which is a hard rejection rule."""
     if manifest:
         m = json.load(open(manifest, encoding="utf-8"))
         entries = m.get("videos", m) if isinstance(m, dict) else m
-        return {e["video_id"]: int(e.get("level", 1)) for e in entries}
+        levels = {e["video_id"]: int(e.get("level", 1)) for e in entries}
+        durs = {e["video_id"]: float(e["duration_sec"])
+                for e in entries if e.get("duration_sec")}
+        return levels, durs
     levels = {}
     with open(DATA / "test" / "ground_truth.csv", newline="", encoding="utf-8") as fh:
         for row in csv.DictReader(fh):
             levels[row["video_id"]] = int(row["level"])
-    return levels
+    return levels, {}
+
+
+def load_levels(manifest=None) -> dict[str, int]:
+    return load_manifest(manifest)[0]
 
 
 # ---------------------------------------------------------------- explanations
@@ -232,7 +241,7 @@ def load_params(path=None):
 
 def predict_video(vid, path, level, model, mu, sd, device, params, encoder=None,
                   cached=None, explainer=None, clip_head=None, protos=None,
-                  proto_scale=60.0, pairwise=None):
+                  proto_scale=60.0, pairwise=None, duration_hint=None):
     """-> (prediction dict, timing breakdown). `params` is the DecodeParams
     for this video's level."""
     t_start = time.perf_counter()
@@ -243,7 +252,7 @@ def predict_video(vid, path, level, model, mu, sd, device, params, encoder=None,
         n_frames = len(emb)
         stats["decode_ms"] = 0.0
         stats["encode_ms"] = 0.0
-        duration = float(ts[-1]) if len(ts) else 0.0
+        duration = duration_hint or (float(ts[-1]) if len(ts) else 0.0)
     else:
         t0 = time.perf_counter()
         pairs = list(sample_frames(path, FPS, MAX_FRAMES, out_size=encoder.size,
@@ -255,7 +264,8 @@ def predict_video(vid, path, level, model, mu, sd, device, params, encoder=None,
         emb = encoder.encode_frames(frames, batch_size=64)
         stats["encode_ms"] = (time.perf_counter() - t0) * 1000
         n_frames = len(frames)
-        duration = probe(path)[2] or (float(ts[-1]) if len(ts) else 0.0)
+        duration = duration_hint or probe(path)[2] or (
+            float(ts[-1]) if len(ts) else 0.0)
 
     t0 = time.perf_counter()
     E = np.asarray(emb, dtype=np.float32)
@@ -344,7 +354,7 @@ def run(params: dict, live=False, manifest=None, head=None,
     pf = CACHE / 'text_prototypes.npy'
     protos = np.load(cf) if cf.exists() else (np.load(pf) if pf.exists() else None)
     proto_scale = 12.0 if cf.exists() else 60.0
-    levels = load_levels(manifest)
+    levels, durations = load_manifest(manifest)
     explainer = Explainer() if explain else None
 
     encoder = None
@@ -371,7 +381,8 @@ def run(params: dict, live=False, manifest=None, head=None,
         lvl = levels.get(vid, 1)
         pred, st = predict_video(vid, str(v), lvl, model, mu, sd,
                                  device, params[lvl], encoder, cached, explainer,
-                                 clip_head, protos, proto_scale, pairwise)
+                                 clip_head, protos, proto_scale, pairwise,
+                                 durations.get(vid))
         preds.append(pred)
         total_ms += st["total_ms"]
         total_video += st["duration"] if st["duration"] else probe(str(v))[2]
@@ -383,6 +394,7 @@ def run(params: dict, live=False, manifest=None, head=None,
         "model_name": "siglip2-base + temporal window head",
         "run_metadata": {
             "total_wall_time_ms": round(wall, 1),
+            "max_parallel_videos": 1,
             "hardware": "1x RTX 3050 Laptop 4GB",
         },
         "predictions": preds,
