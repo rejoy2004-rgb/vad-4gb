@@ -20,3 +20,5 @@ cache_large/
 cache_*/
 runs_large/
 runs_*/
+eval/
+eval_files.txt
