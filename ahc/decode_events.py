@@ -16,11 +16,16 @@ from .config import CLASSES
 class DecodeParams:
     def __init__(self, hi=0.55, lo=0.35, gate=0.55, merge_gap=3.0, min_dur=1.5,
                  pad=0.5, smooth=3, l1_bias=0.0, topk_frac=0.25,
-                 relative=True, q_base=0.5, max_events=0):
+                 relative=True, q_base=0.5, max_events=0, merge_rel=0.0,
+                 w_window=0.0, w_zeroshot=0.0):
         self.hi = hi              # start a segment
         self.lo = lo              # extend a segment
         self.gate = gate          # nothing at all below this peak (absolute)
-        self.merge_gap = merge_gap
+        self.merge_gap = merge_gap    # absolute merge distance, seconds
+        # Scale-adaptive merge: a 120 s congestion event tolerates a long gap,
+        # a 9 s loitering episode does not. Expressed as a fraction of the
+        # combined length of the two segments being considered.
+        self.merge_rel = merge_rel
         self.min_dur = min_dur
         self.pad = pad            # widen each side; windows lag the true onset
         self.smooth = smooth
@@ -29,6 +34,9 @@ class DecodeParams:
         self.relative = relative  # threshold against the video's own baseline
         self.q_base = q_base      # quantile taken as that baseline
         self.max_events = max_events  # keep only the N strongest (0 = all)
+        # optional level-1 ensemble weights (clip head takes the remainder)
+        self.w_window = w_window
+        self.w_zeroshot = w_zeroshot
 
     def as_dict(self):
         return dict(vars(self))
@@ -134,8 +142,11 @@ def decode_temporal(P: np.ndarray, spans: np.ndarray, p: DecodeParams,
     out = [events[0]]
     for e in events[1:]:
         prev = out[-1]
+        span = ((prev["end_time_sec"] - prev["start_time_sec"])
+                + (e["end_time_sec"] - e["start_time_sec"]))
+        allowed = max(p.merge_gap, p.merge_rel * span)
         if (e["class_name"] == prev["class_name"]
-                and e["start_time_sec"] - prev["end_time_sec"] <= p.merge_gap):
+                and e["start_time_sec"] - prev["end_time_sec"] <= allowed):
             prev["end_time_sec"] = max(prev["end_time_sec"], e["end_time_sec"])
             prev["_score"] = max(prev["_score"], e["_score"])
         else:

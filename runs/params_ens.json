@@ -1,8 +1,10 @@
 {
   "level1": {
-    "l1_bias": -0.1,
+    "l1_bias": 0.0,
     "topk_frac": 0.15,
-    "smooth": 1
+    "smooth": 1,
+    "w_window": 0.2,
+    "w_zeroshot": 0.4
   },
   "level2": {
     "hi": 0.65,

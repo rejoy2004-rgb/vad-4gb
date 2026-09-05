@@ -18,7 +18,8 @@ import numpy as np
 import torch
 
 from .config import CACHE, CLASSES, DATA, FPS, MAX_FRAMES, RUNS, TEST
-from .decode_events import DecodeParams, decode_level1, decode_temporal
+from .decode_events import (DecodeParams, decode_level1, decode_temporal,
+                            topk_mean)
 from .features import video_windows
 from .train_clip_head import clip_feature
 from .train_head import Head
@@ -159,7 +160,7 @@ def load_params(path=None):
 
 
 def predict_video(vid, path, level, model, mu, sd, device, params, encoder=None,
-                  cached=None, explainer=None, clip_head=None):
+                  cached=None, explainer=None, clip_head=None, protos=None):
     """-> (prediction dict, timing breakdown). `params` is the DecodeParams
     for this video's level."""
     t_start = time.perf_counter()
@@ -190,6 +191,20 @@ def predict_video(vid, path, level, model, mu, sd, device, params, encoder=None,
         # level 1 is a clip-classification task, so answer it with the
         # clip-level head rather than by pooling window votes
         p = clip_probs(clip_head, E).copy()
+        w_win, w_zs = params.w_window, params.w_zeroshot
+        if w_win or w_zs:
+            p *= (1.0 - w_win - w_zs)
+            if w_win:
+                W = window_probs(model, mu, sd, device, feats)
+                if len(W):
+                    agg = np.array([topk_mean(W[:, i], params.topk_frac)
+                                    for i in range(W.shape[1])])
+                    p += w_win * (agg / max(agg.sum(), 1e-9))
+            if w_zs and protos is not None:
+                lg = 60.0 * (E @ protos.T)
+                z = np.exp(lg - lg.max(1, keepdims=True))
+                z /= z.sum(1, keepdims=True)
+                p += w_zs * z.mean(0)
         p[0] += params.l1_bias
         idx = int(p.argmax())
         events = ([] if idx == 0 else
@@ -246,6 +261,8 @@ def run(params: dict, live=False, manifest=None, head=None,
         explain=False, limit=0):
     model, mu, sd, device = load_head(head)
     clip_head = load_clip_head(device=device)
+    pf = CACHE / 'text_prototypes.npy'
+    protos = np.load(pf) if pf.exists() else None
     levels = load_levels(manifest)
     explainer = Explainer() if explain else None
 
@@ -273,7 +290,7 @@ def run(params: dict, live=False, manifest=None, head=None,
         lvl = levels.get(vid, 1)
         pred, st = predict_video(vid, str(v), lvl, model, mu, sd,
                                  device, params[lvl], encoder, cached, explainer,
-                                 clip_head)
+                                 clip_head, protos)
         preds.append(pred)
         total_ms += st["total_ms"]
         total_video += st["duration"] if st["duration"] else probe(str(v))[2]

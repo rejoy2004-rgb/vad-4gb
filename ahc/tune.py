@@ -21,7 +21,7 @@ from .config import CACHE, CLASSES, RUNS
 from .decode_events import DecodeParams, decode_level1, decode_temporal
 from .features import video_windows
 from .infer import load_head, load_levels, window_probs
-from .score import load_ground_truth, score_video_temporal
+from .score import ARENA_D1_W_ANOM, load_ground_truth, score_video_temporal
 
 
 def precompute(with_classifier: bool = False):
@@ -71,7 +71,11 @@ def eval_level1(pre, gt, levels, bias, topk, smooth, clip_p=None):
         true_c = gts[0]["class_name"] if gts else "normal"
         pred_c = ev[0]["class_name"] if ev else "normal"
         hits_c += int(pred_c == true_c)
-    return (0.5 * hits_a / n + 0.5 * hits_c / n) if n else 0.0, hits_a / n, hits_c / n
+    if not n:
+        return 0.0, 0.0, 0.0
+    a, c = hits_a / n, hits_c / n
+    # optimise what the arena actually pays for: class accuracy dominates D1
+    return ARENA_D1_W_ANOM * a + (1 - ARENA_D1_W_ANOM) * c, a, c
 
 
 def eval_temporal(pre, gt, levels, p, want_level):
@@ -122,18 +126,20 @@ def main():
     # Thresholds are now relative to each video's own baseline, so hi/lo live
     # in [0,1] as "fraction of the way from baseline to this video's peak".
     combos = []
-    for hi, lo, q_base, gap, pad, sm, md in itertools.product(
+    for hi, lo, q_base, gap, rel, pad, sm, md in itertools.product(
             [0.35, 0.5, 0.65, 0.8],        # hi
             [0.15, 0.25, 0.4, 0.55],       # lo
             [0.4, 0.5, 0.6, 0.75],         # q_base
             # long events (T031 runs 125 s) fragment badly without a wide gap
-            [0.0, 5.0, 15.0, 30.0, 60.0],  # merge_gap
+            [0.0, 5.0, 15.0, 30.0, 60.0],  # merge_gap, absolute
+            [0.0, 0.25, 0.5, 1.0],         # merge_rel, scaled to segment length
             [0.5, 1.0, 2.0],               # pad
             [1, 3],                        # smooth
             [1.5, 3.0]):                   # min_dur
         if lo <= hi:
             combos.append(dict(hi=hi, lo=lo, q_base=q_base, merge_gap=gap,
-                               pad=pad, smooth=sm, min_dur=md, relative=True))
+                               merge_rel=rel, pad=pad, smooth=sm, min_dur=md,
+                               relative=True))
     print(f"temporal grid: {len(combos)} combos")
 
     results = {}
