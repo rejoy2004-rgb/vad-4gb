@@ -1,0 +1,750 @@
+<title>Anomaly Detection at 4 GB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --ground:      #F2F5F8;
+    --surface:     #FFFFFF;
+    --surface-2:   #E9EEF3;
+    --rule:        #D2DAE3;
+    --rule-soft:   #E3E9EF;
+    --ink:         #16202B;
+    --ink-soft:    #4B5A6B;
+    --ink-faint:   #7B8A9B;
+    --signal:      #A25F06;
+    --signal-flat: #C67C12;
+    --hit:         #1F7A55;
+    --miss:        #B0362C;
+    --truth:       #3B5670;
+    --shadow:      0 1px 2px rgba(22,32,43,.06), 0 8px 24px -16px rgba(22,32,43,.28);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:    #0D141C;
+      --surface:   #141E29;
+      --surface-2: #1B2734;
+      --rule:      #2A3948;
+      --rule-soft: #1F2C39;
+      --ink:       #E4EBF2;
+      --ink-soft:  #A2B1C1;
+      --ink-faint: #748495;
+      --signal:      #F0A62E;
+      --signal-flat: #F0A62E;
+      --hit:       #43B183;
+      --miss:      #E0685C;
+      --truth:     #8AA5C0;
+      --shadow:    0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:    #0D141C;
+    --surface:   #141E29;
+    --surface-2: #1B2734;
+    --rule:      #2A3948;
+    --rule-soft: #1F2C39;
+    --ink:       #E4EBF2;
+    --ink-soft:  #A2B1C1;
+    --ink-faint: #748495;
+    --signal:      #F0A62E;
+    --signal-flat: #F0A62E;
+    --hit:       #43B183;
+    --miss:      #E0685C;
+    --truth:     #8AA5C0;
+    --shadow:    0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px 96px; }
+  .col  { max-width: 660px; }
+
+  h1, h2, h3, .eyebrow, .stat-n, .lede {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+  }
+  code, .mono, table, .tag { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
+
+  /* ---------------------------------------------------------- masthead */
+  header {
+    border-bottom: 1px solid var(--rule);
+    padding: 64px 0 34px;
+    margin-bottom: 46px;
+  }
+  .kicker {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--signal);
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-size: clamp(38px, 6.2vw, 62px);
+    line-height: 1.02;
+    letter-spacing: -.028em;
+    font-weight: 700;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  .lede {
+    font-size: 19px;
+    line-height: 1.5;
+    font-weight: 500;
+    color: var(--ink-soft);
+    max-width: 640px;
+    margin: 0 0 38px;
+  }
+
+  .stats { display: flex; flex-wrap: wrap; gap: 40px; }
+  .stat-n {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-n.sig { color: var(--signal); }
+  .stat-l {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-top: 9px;
+  }
+
+  /* ---------------------------------------------------------- sections */
+  section { margin-bottom: 60px; }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  h2 {
+    font-size: 27px;
+    letter-spacing: -.018em;
+    font-weight: 600;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 30px 0 8px;
+    letter-spacing: -.008em;
+  }
+  p { margin: 0 0 17px; }
+  .col p, .col li { max-width: 66ch; }
+  strong { font-weight: 600; }
+  em.term { font-style: normal; color: var(--signal); font-weight: 600; }
+
+  ul { margin: 0 0 17px; padding-left: 20px; }
+  li { margin-bottom: 8px; }
+
+  code {
+    font-size: .84em;
+    background: var(--surface-2);
+    border: 1px solid var(--rule-soft);
+    border-radius: 3px;
+    padding: 1px 5px;
+  }
+
+  /* ------------------------------------------------------------ panels */
+  figure {
+    margin: 30px 0;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 26px 26px 20px;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+  figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+  figcaption {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--ink-faint);
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule-soft);
+    max-width: 80ch;
+  }
+  figcaption b { color: var(--ink-soft); font-weight: 500; }
+
+  /* ------------------------------------------------------------ tables */
+  .tbl-wrap { overflow-x: auto; margin: 24px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  th {
+    text-align: left;
+    font-weight: 700;
+    font-size: 10.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 0 14px 9px 0;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 14px 10px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    color: var(--ink-soft);
+    vertical-align: top;
+  }
+  td.n { text-align: right; padding-right: 20px; white-space: nowrap; }
+  tr.best td { color: var(--ink); font-weight: 500; }
+  tr.best td.n { color: var(--signal); font-weight: 700; }
+  .delta { color: var(--hit); font-weight: 500; }
+
+  /* -------------------------------------------------------- callouts */
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 22px 24px;
+    margin: 18px 0;
+    box-shadow: var(--shadow);
+  }
+  .finding h3 { margin: 0 0 8px; font-size: 16.5px; }
+  .finding p { margin: 0 0 10px; color: var(--ink-soft); font-size: 15.5px; }
+  .finding p:last-child { margin-bottom: 0; }
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: var(--hit);
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    padding: 2px 10px;
+  }
+  .caveat {
+    border-left: 3px solid var(--signal);
+    padding: 4px 0 4px 20px;
+    margin: 26px 0;
+    color: var(--ink-soft);
+  }
+  .caveat p:last-child { margin-bottom: 0; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    margin-bottom: 18px;
+  }
+  .swatch {
+    display: inline-block;
+    width: 22px; height: 9px;
+    border-radius: 2px;
+    vertical-align: middle;
+    margin-right: 7px;
+  }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 24px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 640px) {
+    body { font-size: 16px; }
+    .stats { gap: 26px; }
+    .stat-n { font-size: 27px; }
+    figure { padding: 18px 16px 14px; }
+  }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="kicker">AHC Visual Intelligence Hackathon · Architecture</p>
+  <h1>Anomaly Detection at 4&nbsp;GB</h1>
+  <p class="lede">
+    Eleven anomaly classes across drone, CCTV and dashcam footage, detected end to end
+    at twenty times real time on a laptop GPU with four gigabytes of memory.
+  </p>
+  <div class="stats">
+    <div>
+      <div class="stat-n sig">0.618</div>
+      <div class="stat-l">Overall · public test</div>
+    </div>
+    <div>
+      <div class="stat-n">20.3&times;</div>
+      <div class="stat-l">Real time, incl. decode</div>
+    </div>
+    <div>
+      <div class="stat-n">1.03<span style="font-size:.6em"> GB</span></div>
+      <div class="stat-l">Peak VRAM</div>
+    </div>
+    <div>
+      <div class="stat-n">78<span style="font-size:.6em"> fps</span></div>
+      <div class="stat-l">Encoder throughput</div>
+    </div>
+  </div>
+</header>
+
+<section class="col">
+  <p class="eyebrow">The constraint</p>
+  <h2>Four gigabytes decided the architecture</h2>
+  <p>
+    The target hardware was an RTX 3050 Laptop with 4&nbsp;GB of VRAM. That single number
+    rules out fine-tuning a 2B-parameter vision-language model locally, and it rules out
+    running one generatively on every frame of every stream.
+  </p>
+  <p>
+    So we did not train a VLM. We <strong>froze one and trained only what sits on top of
+    it.</strong> The open-vocabulary semantics that make a VLM the right tool for
+    context-dependent anomalies still come from the VLM; the task-specific part is a pair
+    of small heads that cost almost nothing to run and under a minute to retrain.
+  </p>
+  <p>
+    That choice has a second effect that mattered more than the first. Because the encoder
+    is frozen, all 3,207 videos are embedded exactly <em class="term">once</em> into a
+    cache. Every later experiment reads embeddings instead of pixels, so an idea about
+    windowing or thresholds could be tested in seconds rather than in another full pass
+    over 13.7 hours of video.
+  </p>
+</section>
+
+<section>
+  <p class="eyebrow" style="max-width:660px">The pipeline</p>
+  <h2 style="max-width:660px">What runs per frame, per window, and per event</h2>
+  <p class="col">
+    Cost is dominated by whatever touches every frame, so the design pushes work down the
+    rate ladder: the expensive model runs at the cheapest rate that still sees the event,
+    and everything below it operates on vectors.
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 1000 430" role="img"
+         aria-label="Pipeline diagram showing three rate bands: per frame at 2 frames per second running decode and the frozen SigLIP encoder; per window every 2 seconds running the window head; and per detected event running the clip head and retrieval explainer.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- band backgrounds -->
+      <rect x="0" y="34"  width="1000" height="112" rx="6" fill="currentColor" opacity=".045"/>
+      <rect x="0" y="176" width="1000" height="102" rx="6" fill="currentColor" opacity=".045"/>
+      <rect x="0" y="308" width="1000" height="102" rx="6" fill="currentColor" opacity=".045"/>
+
+      <!-- band labels -->
+      <text x="14" y="22" font-family="JetBrains Mono, monospace" font-size="12"
+            font-weight="700" fill="currentColor" opacity=".55">PER FRAME · 2 fps</text>
+      <text x="14" y="168" font-family="JetBrains Mono, monospace" font-size="12"
+            font-weight="700" fill="currentColor" opacity=".55">PER WINDOW · 4 s span, 2 s hop</text>
+      <text x="14" y="300" font-family="JetBrains Mono, monospace" font-size="12"
+            font-weight="700" fill="currentColor" opacity=".55">PER DETECTED EVENT</text>
+
+      <!-- ROW 1 : per frame -->
+      <rect x="14" y="56" width="150" height="68" rx="5" fill="none"
+            stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+      <text x="89" y="84" text-anchor="middle" font-family="Archivo, sans-serif"
+            font-size="14" fill="currentColor">Video stream</text>
+      <text x="89" y="104" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="11" fill="currentColor" opacity=".6">drone · CCTV · dash</text>
+
+      <line x1="170" y1="90" x2="212" y2="90" stroke="currentColor" stroke-width="1.5"
+            marker-end="url(#ar)"/>
+
+      <rect x="218" y="56" width="176" height="68" rx="5" fill="none"
+            stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+      <text x="306" y="84" text-anchor="middle" font-family="Archivo, sans-serif"
+            font-size="14" fill="currentColor">Decode + downsize</text>
+      <text x="306" y="104" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="11" fill="currentColor" opacity=".6">224px at decode time</text>
+
+      <line x1="400" y1="90" x2="442" y2="90" stroke="currentColor" stroke-width="1.5"
+            marker-end="url(#ar)"/>
+
+      <rect x="448" y="48" width="216" height="84" rx="5" fill="none"
+            stroke="#C67C12" stroke-width="2.5"/>
+      <text x="556" y="76" text-anchor="middle" font-family="Archivo, sans-serif"
+            font-size="15" font-weight="600" fill="#C67C12">SigLIP-2 base</text>
+      <text x="556" y="96" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="11.5" font-weight="700" fill="#C67C12">FROZEN · fp16</text>
+      <text x="556" y="116" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="11" fill="currentColor" opacity=".6">78 fps · 1.03 GB</text>
+
+      <line x1="670" y1="90" x2="712" y2="90" stroke="currentColor" stroke-width="1.5"
+            marker-end="url(#ar)"/>
+      <text x="691" y="80" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="10.5" fill="currentColor" opacity=".6">768-d</text>
+
+      <rect x="718" y="56" width="268" height="68" rx="5" fill="none"
+            stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+      <text x="852" y="84" text-anchor="middle" font-family="Archivo, sans-serif"
+            font-size="14" fill="currentColor">Embedding cache</text>
+      <text x="852" y="104" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="11" fill="currentColor" opacity=".6">encode once, reuse forever</text>
+
+      <!-- frame -> window -->
+      <line x1="556" y1="132" x2="556" y2="196" stroke="currentColor" stroke-width="1.5"
+            marker-end="url(#ar)"/>
+      <text x="566" y="166" font-family="JetBrains Mono, monospace" font-size="10.5"
+            fill="currentColor" opacity=".6">groups 8 frames</text>
+
+      <!-- ROW 2 : per window -->
+      <rect x="218" y="196" width="216" height="64" rx="5" fill="none"
+            stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+      <text x="326" y="222" text-anchor="middle" font-family="Archivo, sans-serif"
+            font-size="14" fill="currentColor">Window features</text>
+      <text x="326" y="242" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="10.5" fill="currentColor" opacity=".6">mean · max · std · drift</text>
+
+      <line x1="440" y1="228" x2="482" y2="228" stroke="currentColor" stroke-width="1.5"
+            marker-end="url(#ar)"/>
+
+      <rect x="488" y="190" width="200" height="76" rx="5" fill="none"
+            stroke="#1F7A55" stroke-width="2"/>
+      <text x="588" y="216" text-anchor="middle" font-family="Archivo, sans-serif"
+            font-size="14.5" font-weight="600" fill="#1F7A55">Window head</text>
+      <text x="588" y="235" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="11" fill="currentColor" opacity=".65">MLP · answers</text>
+      <text x="588" y="252" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="11.5" font-weight="700" fill="#1F7A55">WHERE</text>
+
+      <line x1="694" y1="228" x2="736" y2="228" stroke="currentColor" stroke-width="1.5"
+            marker-end="url(#ar)"/>
+
+      <rect x="742" y="190" width="244" height="76" rx="5" fill="none"
+            stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+      <text x="864" y="216" text-anchor="middle" font-family="Archivo, sans-serif"
+            font-size="14" fill="currentColor">Hysteresis decoder</text>
+      <text x="864" y="236" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="10.5" fill="currentColor" opacity=".6">relative to this video's</text>
+      <text x="864" y="252" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="10.5" fill="currentColor" opacity=".6">own baseline · merge · gate</text>
+
+      <!-- window -> event -->
+      <line x1="864" y1="266" x2="864" y2="326" stroke="currentColor" stroke-width="1.5"
+            marker-end="url(#ar)"/>
+      <text x="854" y="300" text-anchor="end" font-family="JetBrains Mono, monospace"
+            font-size="10.5" fill="currentColor" opacity=".6">candidate spans</text>
+
+      <!-- ROW 3 : per event -->
+      <rect x="612" y="326" width="200" height="72" rx="5" fill="none"
+            stroke="#1F7A55" stroke-width="2"/>
+      <text x="712" y="352" text-anchor="middle" font-family="Archivo, sans-serif"
+            font-size="14.5" font-weight="600" fill="#1F7A55">Clip head</text>
+      <text x="712" y="371" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="11" fill="currentColor" opacity=".65">MLP · answers</text>
+      <text x="712" y="388" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="11.5" font-weight="700" fill="#1F7A55">WHAT</text>
+
+      <line x1="608" y1="362" x2="566" y2="362" stroke="currentColor" stroke-width="1.5"
+            marker-end="url(#ar)"/>
+
+      <rect x="318" y="326" width="244" height="72" rx="5" fill="none"
+            stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+      <text x="440" y="352" text-anchor="middle" font-family="Archivo, sans-serif"
+            font-size="14" fill="currentColor">Retrieval explainer</text>
+      <text x="440" y="372" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="10.5" fill="currentColor" opacity=".6">nearest training caption</text>
+      <text x="440" y="388" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="10.5" fill="currentColor" opacity=".6">one dot product, no LLM</text>
+
+      <line x1="314" y1="362" x2="272" y2="362" stroke="currentColor" stroke-width="1.5"
+            marker-end="url(#ar)"/>
+
+      <rect x="14" y="326" width="252" height="72" rx="5" fill="none"
+            stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+      <text x="140" y="358" text-anchor="middle" font-family="Archivo, sans-serif"
+            font-size="14" fill="currentColor">Events + timestamps</text>
+      <text x="140" y="378" text-anchor="middle" font-family="JetBrains Mono, monospace"
+            font-size="10.5" fill="currentColor" opacity=".6">submission JSON</text>
+    </svg>
+    <figcaption>
+      <b>The only model that touches every frame is the frozen encoder</b>, and it runs at
+      2&nbsp;fps rather than the source frame rate. Everything below that band operates on
+      768-dimensional vectors, so the two trained heads and the decoder are effectively
+      free. The clip head is invoked once per <i>candidate span</i>, not per window &mdash;
+      typically a handful of calls per video.
+    </figcaption>
+  </figure>
+
+  <div class="tbl-wrap col" style="max-width:none">
+    <table>
+      <thead>
+        <tr><th>Stage</th><th>Rate</th><th>Model</th><th>Trained?</th><th class="n">Cost</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Decode + downsize</td><td>every sampled frame</td><td>OpenCV</td><td>&mdash;</td><td class="n">dominant</td></tr>
+        <tr><td>Frame embedding</td><td>2 / second</td><td>SigLIP-2 base, fp16</td><td>frozen</td><td class="n">78 fps</td></tr>
+        <tr><td>Window features</td><td>1 / 2 seconds</td><td>numpy</td><td>&mdash;</td><td class="n">negligible</td></tr>
+        <tr><td>Where: anomaly score</td><td>1 / 2 seconds</td><td>3-layer MLP</td><td>yes</td><td class="n">negligible</td></tr>
+        <tr><td>What: span class</td><td>1 / candidate event</td><td>3-layer MLP &times;3</td><td>yes</td><td class="n">negligible</td></tr>
+        <tr><td>Explanation</td><td>1 / emitted event</td><td>dot product</td><td>&mdash;</td><td class="n">negligible</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="col">
+  <p class="eyebrow">The finding that mattered most</p>
+  <h2>Score each moment against its own video, not against a constant</h2>
+  <p>
+    The first working version localised almost nothing at Levels&nbsp;2 and&nbsp;3. Every
+    anomalous video produced exactly one enormous predicted event where the truth held four
+    to six, and the temporal-overlap gate rejected all of them.
+  </p>
+  <p>
+    The traces explained why. The head is trained on short clips in which the event fills
+    the entire clip, so on long footage it does not report "anomaly here, normal there" &mdash;
+    it reports a high, roughly constant <em class="term">pedestal</em> whenever the scenery
+    is anomaly-ish. Baselines ranged from 0.55 on one video to 0.88 on another. No absolute
+    threshold can transfer across that.
+  </p>
+  <p>
+    The events were still visible: they were the <em class="term">rises above</em> the
+    pedestal, not the absolute values. Normalising each video against its own median before
+    thresholding recovered them &mdash; while an absolute gate, applied first, still decides
+    whether the video contains anything at all, so a genuinely normal video stays silent.
+  </p>
+
+  <div class="finding">
+    <h3>Score against each video's own baseline</h3>
+    <p>Threshold on the rise above the video's own median rather than a global constant.
+      An absolute gate is kept in front of it, because a false alarm on a normal video
+      scores zero and per-video normalisation would otherwise manufacture peaks from noise.</p>
+    <span class="tag">Level 2 +0.12 · Level 3 +0.10</span>
+  </div>
+  <div class="finding">
+    <h3>Use each head for the question it was trained on</h3>
+    <p>The window head is good at <i>where</i>; the clip head, trained on whole clips, is
+      good at <i>what</i>. Letting the clip head classify each detected span instead of
+      pooling window votes fixed entire videos at once.</p>
+    <span class="tag">Level 3 &nbsp;0.296 → 0.414</span>
+  </div>
+  <div class="finding">
+    <h3>Size the merge gap to real events</h3>
+    <p>Level-3 events run 45 to 125 seconds. A 5-second merge ceiling shattered one
+      sustained event into thirteen fragments &mdash; and only the single best-overlapping
+      fragment can ever match, so the other twelve counted against precision.</p>
+    <span class="tag">T031 &nbsp;0.200 → 0.848</span>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow" style="max-width:660px">Behaviour on real videos</p>
+  <h2 style="max-width:660px">Three outcomes, drawn from the submitted run</h2>
+
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--truth)"></span>ground truth</span>
+    <span><span class="swatch" style="background:var(--hit)"></span>predicted &mdash; matched</span>
+    <span><span class="swatch" style="background:var(--miss)"></span>predicted &mdash; no match</span>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 760 340" role="img"
+         aria-label="Three timelines comparing ground truth against predictions. T028: four short accidents, three detected with good overlap. T031: one long congestion event, closely tracked. T025: five intervals placed almost exactly on the true events but labelled with the wrong class, so none of them count.">
+
+      <!-- ============ T028 ============ -->
+      <text x="0" y="14" font-family="JetBrains Mono, monospace" font-size="12"
+            font-weight="700" fill="currentColor">T028</text>
+      <text x="52" y="14" font-family="JetBrains Mono, monospace" font-size="11"
+            fill="currentColor" opacity=".55">Level 2 · 4 accidents in 240 s · scored 0.780</text>
+
+      <text x="0" y="42" font-family="JetBrains Mono, monospace" font-size="10"
+            fill="currentColor" opacity=".55">truth</text>
+      <line x1="70" y1="38" x2="730" y2="38" stroke="currentColor" stroke-width="1" opacity=".18"/>
+      <rect x="152.5" y="32" width="13.8" height="13" rx="2" fill="#3B5670"/>
+      <rect x="317.5" y="32" width="13.8" height="13" rx="2" fill="#3B5670"/>
+      <rect x="482.5" y="32" width="13.8" height="13" rx="2" fill="#3B5670"/>
+      <rect x="647.5" y="32" width="13.8" height="13" rx="2" fill="#3B5670"/>
+
+      <text x="0" y="68" font-family="JetBrains Mono, monospace" font-size="10"
+            fill="currentColor" opacity=".55">ours</text>
+      <line x1="70" y1="64" x2="730" y2="64" stroke="currentColor" stroke-width="1" opacity=".18"/>
+      <rect x="147.8" y="58" width="22.6" height="13" rx="2" fill="#1F7A55"/>
+      <rect x="311.5" y="58" width="22.6" height="13" rx="2" fill="#1F7A55"/>
+      <rect x="644.1" y="58" width="22.6" height="13" rx="2" fill="#1F7A55"/>
+      <text x="490" y="86" font-family="JetBrains Mono, monospace" font-size="10"
+            fill="currentColor" opacity=".5">one event missed &rarr;</text>
+      <rect x="482.5" y="76" width="13.8" height="3" rx="1" fill="currentColor" opacity=".28"/>
+
+      <!-- ============ T031 ============ -->
+      <text x="0" y="134" font-family="JetBrains Mono, monospace" font-size="12"
+            font-weight="700" fill="currentColor">T031</text>
+      <text x="52" y="134" font-family="JetBrains Mono, monospace" font-size="11"
+            fill="currentColor" opacity=".55">Level 3 · sustained congestion, 125 s · scored 0.848</text>
+
+      <text x="0" y="162" font-family="JetBrains Mono, monospace" font-size="10"
+            fill="currentColor" opacity=".55">truth</text>
+      <line x1="70" y1="158" x2="730" y2="158" stroke="currentColor" stroke-width="1" opacity=".18"/>
+      <rect x="500.8" y="152" width="229.2" height="13" rx="2" fill="#3B5670"/>
+
+      <text x="0" y="188" font-family="JetBrains Mono, monospace" font-size="10"
+            fill="currentColor" opacity=".55">ours</text>
+      <line x1="70" y1="184" x2="730" y2="184" stroke="currentColor" stroke-width="1" opacity=".18"/>
+      <rect x="451.3" y="178" width="233.7" height="13" rx="2" fill="#1F7A55"/>
+
+      <!-- ============ T025 ============ -->
+      <text x="0" y="254" font-family="JetBrains Mono, monospace" font-size="12"
+            font-weight="700" fill="currentColor">T025</text>
+      <text x="52" y="254" font-family="JetBrains Mono, monospace" font-size="11"
+            fill="currentColor" opacity=".55">Level 2 · 6 accidents · scored 0.300 &mdash; the instructive failure</text>
+
+      <text x="0" y="282" font-family="JetBrains Mono, monospace" font-size="10"
+            fill="currentColor" opacity=".55">truth</text>
+      <line x1="70" y1="278" x2="730" y2="278" stroke="currentColor" stroke-width="1" opacity=".18"/>
+      <rect x="125" y="272" width="55" height="13" rx="2" fill="#3B5670"/>
+      <rect x="235" y="272" width="55" height="13" rx="2" fill="#3B5670"/>
+      <rect x="345" y="272" width="55" height="13" rx="2" fill="#3B5670"/>
+      <rect x="455" y="272" width="55" height="13" rx="2" fill="#3B5670"/>
+      <rect x="565" y="272" width="55" height="13" rx="2" fill="#3B5670"/>
+      <rect x="675" y="272" width="55" height="13" rx="2" fill="#3B5670"/>
+
+      <text x="0" y="308" font-family="JetBrains Mono, monospace" font-size="10"
+            fill="currentColor" opacity=".55">ours</text>
+      <line x1="70" y1="304" x2="730" y2="304" stroke="currentColor" stroke-width="1" opacity=".18"/>
+      <rect x="126.7" y="298" width="48.9" height="13" rx="2" fill="#B0362C"/>
+      <rect x="258.7" y="298" width="17.3" height="13" rx="2" fill="#B0362C"/>
+      <rect x="343.2" y="298" width="54.2" height="13" rx="2" fill="#B0362C"/>
+      <rect x="464.6" y="298" width="38.4" height="13" rx="2" fill="#B0362C"/>
+      <rect x="681.1" y="298" width="38.4" height="13" rx="2" fill="#B0362C"/>
+      <text x="70" y="330" font-family="JetBrains Mono, monospace" font-size="10.5"
+            fill="#B0362C">every interval well placed · all labelled wrong_way_driving instead of traffic_accident</text>
+    </svg>
+    <figcaption>
+      <b>T025 is the most useful video in the set.</b> The localisation is close to
+      perfect &mdash; 20.6&ndash;38.4&nbsp;s against a true 20&ndash;40&nbsp;s, and four more
+      like it. It scores 0.300 anyway, because an event counts only when the class is also
+      right. Both heads independently call this footage wrong-way driving, so this is a
+      genuine perception failure rather than a decoder bug, and we left it alone rather
+      than tune six videos into agreement.
+    </figcaption>
+  </figure>
+</section>
+
+<section class="col">
+  <p class="eyebrow">Results</p>
+  <h2>Every change, measured on the same 34 videos</h2>
+  <div class="tbl-wrap" style="max-width:none">
+    <table>
+      <thead>
+        <tr><th>Configuration</th><th class="n">L1</th><th class="n">L2</th><th class="n">L3</th><th class="n">Overall</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Window head, absolute thresholds</td><td class="n">0.688</td><td class="n">0.533</td><td class="n">0.200</td><td class="n">0.474</td></tr>
+        <tr><td>+ per-video relative scoring</td><td class="n">0.688</td><td class="n">0.658</td><td class="n">0.296</td><td class="n">0.547</td></tr>
+        <tr><td>+ clip head decides Level 1</td><td class="n">0.729</td><td class="n">0.658</td><td class="n">0.296</td><td class="n">0.561</td></tr>
+        <tr><td>+ clip head classifies spans, wider merge</td><td class="n">0.729</td><td class="n">0.674</td><td class="n">0.414</td><td class="n">0.606</td></tr>
+        <tr class="best"><td>+ 3-seed ensemble, tuning matched to runtime</td><td class="n">0.750</td><td class="n">0.674</td><td class="n">0.430</td><td class="n">0.618</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    For scale: predicting <code>normal</code> everywhere scores 0.167, and declaring every
+    clip anomalous &mdash; the strategy the 0.5 overlap gate exists to punish &mdash; scores
+    0.293. Held out on training data (476 unseen videos, split by video so no clip leaks
+    across), the clip head reaches <strong>0.968</strong> anomaly accuracy and 0.860 class
+    accuracy; the window head, 0.887 and 0.861.
+  </p>
+  <p>
+    Level-1 anomaly detection is now 23 of 24 correct. The remaining Level-1 loss is almost
+    entirely <em class="term">class</em> confusion within genuinely adjacent pairs:
+    smoke against fire, and fighting against loitering.
+  </p>
+</section>
+
+<section class="col">
+  <p class="eyebrow">Speed</p>
+  <h2>Twenty times real time, decode included</h2>
+  <p>
+    The submitted run processed <strong>3,391 seconds of video in 167 seconds</strong> on
+    one RTX 3050 Laptop &mdash; decoding, preprocessing, inference and postprocessing, with
+    only model loading excluded. Scores from the live run are identical to the cached run,
+    so the speed costs nothing in accuracy.
+  </p>
+  <p>
+    Worth stating plainly: <strong>the GPU is not the bottleneck, video decoding is.</strong>
+    The encoder sustains 78&nbsp;fps and holds 1.03&nbsp;GB, which on this card leaves room
+    for roughly three more concurrent streams before memory, rather than compute, becomes
+    the limit. Sampling at 2&nbsp;fps is what buys the headroom, and it is close to the floor:
+    an accident is over in about a second.
+  </p>
+</section>
+
+<section class="col">
+  <p class="eyebrow">Honesty</p>
+  <h2>What we do not know, and what we dropped</h2>
+
+  <div class="caveat">
+    <p>
+      <strong>The temporal thresholds are the least trustworthy part of the system.</strong>
+      They are tuned on 6 Level-2 and 4 Level-3 videos. The search is deliberately coarse
+      and ties break toward the least aggressive setting, but ten videos cannot support
+      confident threshold selection and we would expect some regression on the private set.
+    </p>
+  </div>
+  <div class="caveat">
+    <p>
+      <strong>Our local scorer follows the published structure of the metric, not its exact
+      weights.</strong> The Level-2/3 mix of alert, matched events and timing is described
+      but not quantified in the brief. The scorer ranks configurations reliably; it does not
+      predict the leaderboard number.
+    </p>
+  </div>
+
+  <h3>Tried and rejected</h3>
+  <ul>
+    <li><strong>A larger SigLIP.</strong> Both the large and so400m variants segfault on
+      load at 4&nbsp;GB. The base model at 78&nbsp;fps is squarely what the constraint asks
+      for, so we stopped rather than fight it.</li>
+    <li><strong>Zero-shot prompt fusion.</strong> Text prototypes alone reach 0.292 class
+      accuracy; blended with the head they added nothing that survived scrutiny, and the
+      best blend weight was clearly fitting 24 videos.</li>
+    <li><strong>One shared threshold for all tiers.</strong> The levels are three different
+      tasks and are scored separately, so they get separately tuned decoders.</li>
+  </ul>
+
+  <h3>With more time</h3>
+  <ul>
+    <li>Train the window head on <em class="term">long</em> videos with true negatives inside
+      them, which would attack the pedestal problem at its source instead of normalising
+      around it.</li>
+    <li>A verification stage on triggered spans only &mdash; the architecture already has
+      the slot, currently occupied by the retrieval explainer.</li>
+    <li>Targeted separation for the adjacent pairs: fire against smoke, fighting against
+      loitering.</li>
+  </ul>
+</section>
+
+<footer>
+  Frozen SigLIP-2 base · two 3-layer MLP heads · hysteresis decoder<br>
+  3,173 training videos across 12 classes · 34-video public test set<br>
+  Measured on 1&times; RTX 3050 Laptop, 4 GB VRAM
+</footer>
+
+</div>
