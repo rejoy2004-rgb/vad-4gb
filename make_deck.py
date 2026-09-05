@@ -15,16 +15,13 @@ BG, PANEL = RGBColor(0x10, 0x13, 0x1A), RGBColor(0x1A, 0x1F, 0x2B)
 TEXT, MUTED = RGBColor(0xE8, 0xEC, 0xF4), RGBColor(0x8B, 0x93, 0xA7)
 ACCENT, GREEN, RED = RGBColor(0xF5, 0xA6, 0x23), RGBColor(0x4A, 0xDE, 0x80), RGBColor(0xF8, 0x71, 0x71)
 
-# Real arena marks per submitted run, out of D1 25 / D2 35 / D3 40.
-# The first two entries are local scores converted to the same scale before we
-# had arena feedback; from run 3 on these are the arena's own numbers.
+# Real arena marks on the PRIVATE evaluation set (28 videos).
+# D1 is worth 25, D2 35, D3 40.
 STAGES = [
-    ("Window head,\nabsolute thresholds", 17.2, 18.7, 8.0, 43.9),
-    ("+ per-video\nrelative scoring", 17.2, 23.0, 11.8, 52.0),
-    ("+ clip head\nboth roles", 15.5, 24.3, 18.5, 58.3),
-    ("+ L1 blend", 15.9, 24.3, 18.5, 58.7),
-    ("+ seed ensembles,\nricher explanations", 15.9, 24.6, 18.9, 59.4),
-    ("+ false-alarm cap", 15.9, 24.6, 20.2, 60.7),
+    ("Config tuned on\nthe practice pack", 14.1, 17.9, 8.0, 39.9),
+    ("+ more D3 windows\n(wrong direction)", 14.1, 17.9, 8.0, 39.9),
+    ("+ single span,\nall levels", 14.1, 14.0, 22.8, 50.8),
+    ("+ span per level:\nD3 whole, D2 portion", 14.1, 17.9, 22.8, 54.8),
 ]
 
 
@@ -47,16 +44,14 @@ def chart_progression(path):
     for x, v in zip(xs, ov):
         ax.annotate(f"{v:.1f}", (x, v), textcoords="offset points", xytext=(0, 10),
                     ha="center", color=_hex(ACCENT), fontsize=10, fontweight="bold")
-    # the ceiling we measured by oracle search over ~15k decoder configs
-    ax.axhline(61.0, color=_hex(RED), ls="--", lw=1.3, alpha=.85)
-    # anchored left: on the right it collides with the last value labels
-    ax.annotate("~61  measured ceiling of this encoder", (0, 61.0),
-                xytext=(0, 7), textcoords="offset points", ha="left",
+    ax.axhline(60.7, color=_hex(RED), ls="--", lw=1.3, alpha=.85)
+    ax.annotate("60.7  what the practice pack promised", (0, 60.7),
+                xytext=(0, -14), textcoords="offset points", ha="left",
                 color=_hex(RED), fontsize=8.5, alpha=.95)
     ax.set_xticks(list(xs))
     ax.set_xticklabels([s[0] for s in STAGES], color=_hex(MUTED), fontsize=7.6)
     ax.set_xlim(-0.4, len(STAGES) - 0.6)
-    ax.set_ylim(2, 72)
+    ax.set_ylim(2, 70)
     ax.tick_params(colors=_hex(MUTED), labelsize=8.5, length=0)
     for s in ax.spines.values():
         s.set_visible(False)
@@ -180,7 +175,7 @@ def build():
            "20.3x real time on an RTX 3050 Laptop", {})],
          size=12.5, color=MUTED)
 
-    stat(s, 10.25, 0.38, 2.55, "60.7 / 100", "ARENA SCORE · PUBLIC TEST")
+    stat(s, 10.25, 0.38, 2.55, "54.8 / 100", "PRIVATE EVALUATION SET")
 
     # pipeline
     text(s, 0.55, 1.72, 6, 0.3, "PIPELINE", size=10, bold=True, color=ACCENT)
@@ -252,7 +247,7 @@ def build():
     text(s, 0.55, 0.42, 9, 0.45, "What moved the score, and what didn't",
          size=27, bold=True)
     text(s, 0.55, 1.0, 9, 0.3,
-         "Real arena marks across 15 scored runs. D1 is worth 25, D2 35, D3 40.",
+         "Private evaluation set, 28 videos. D1 is worth 25, D2 35, D3 40.",
          size=12, color=MUTED)
 
     s.shapes.add_picture(str(OUT / "chart_progression.png"), Inches(0.55), Inches(1.5),
@@ -263,9 +258,9 @@ def build():
     text(s, 0.55, y, 7.4, 0.3, "FINAL, BY DIFFICULTY TIER",
          size=10, bold=True, color=ACCENT)
     for i, (lbl, val, marks, note) in enumerate([
-            ("Difficulty 1", "63.7%", "15.9 / 25", "class confusion is the wall"),
-            ("Difficulty 2", "70.3%", "24.6 / 35", "oracle ceiling 24.8"),
-            ("Difficulty 3", "50.4%", "20.2 / 40", "oracle ceiling 19.8"),
+            ("Difficulty 1", "56.2%", "14.1 / 25", "class confusion is the wall"),
+            ("Difficulty 2", "51.0%", "17.9 / 35", "event is part of the clip"),
+            ("Difficulty 3", "57.0%", "22.8 / 40", "one span beat 4 windows"),
     ]):
         bx = 0.55 + i * 2.52
         box(s, bx, y + 0.34, 2.32, 1.18, PANEL, radius=0.1)
@@ -277,12 +272,12 @@ def build():
 
     text(s, 0.55, 6.35, 7.4, 0.85,
          [("Honest caveat.  ", {"bold": True, "color": ACCENT}),
-          ("The decoder is tuned on 6 Difficulty-2 and 4 Difficulty-3 videos, so "
-           "those thresholds are the least trustworthy part of the system, and ties "
-           "break toward the least aggressive setting. Our scorer matches the "
-           "published structure of the metric; the exact within-tier weighting "
-           "isn't published, so it ranks configurations rather than predicting the "
-           "leaderboard.", {"color": MUTED})],
+          ("A decoder tuned to 60.7 on the practice pack scored 39.9 on the private "
+           "set — thresholds fitted to 10 videos did not transfer, and the gain that "
+           "mattered came from reading the scoring rule rather than from search. "
+           "Class accuracy is now the binding constraint: stalled, road_spill, "
+           "blocking and wrong_way are all 0% found, and no timing change fixes a "
+           "wrong label.", {"color": MUTED})],
          size=9.8, spacing=1.15)
 
     # findings column
@@ -301,11 +296,12 @@ def build():
          "clip head classify each detected span, instead of pooling window votes, "
          "fixed whole videos at once.",
          "L3 0.296 → 0.414", GREEN),
-        ("We proved when to stop tuning",
-         "Oracle search over ~15,000 decoder configs, scoring each video at its own "
-         "best setting, tops out near 61 marks — we are at 60.7. Two D3 videos sit "
-         "exactly at their ceiling: no threshold can rank their events.",
-         "Decoder is finished; encoder is the wall", RED),
+        ("Annotation granularity beat every tuned threshold",
+         "Overlap is scored against the WHOLE ground-truth span, so our short "
+         "windows each fell under the 0.5 gate and scored nothing. One span per "
+         "video lifted D3 from 8.0 to 22.8 marks - after ~15,000 tuned configs "
+         "had barely moved it.",
+         "D3 20% -> 57%; total 39.9 -> 54.8", GREEN),
     ]
     yy = 1.9
     for title, body, gain, col in findings:
