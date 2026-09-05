@@ -9,6 +9,7 @@ import argparse
 import queue
 import threading
 import time
+from pathlib import Path
 
 import numpy as np
 
@@ -43,7 +44,7 @@ def extract(items, out_path, encoder: Encoder, workers: int = 4, batch_size: int
     q: queue.Queue = queue.Queue(maxsize=workers * 2)
     todo = list(items)
 
-    def producer(shard):
+    def _producer(shard):
         for vid, _cls, path in shard:
             try:
                 q.put((vid, *_decode(path, encoder.size)))
@@ -51,14 +52,27 @@ def extract(items, out_path, encoder: Encoder, workers: int = 4, batch_size: int
                 print(f"  decode failed {vid}: {exc}")
                 q.put((vid, np.zeros(0, np.float32), []))
 
+    # Checkpoint periodically: a crash an hour into a run must not cost the run.
+    store, t0, done, nframes = {}, time.time(), 0, 0
+    ckpt = Path(str(out_path) + ".partial.npz")
+    if ckpt.exists():
+        prev = np.load(ckpt)
+        store = {k: prev[k] for k in prev.files}
+        have = {k.split("__")[0] for k in store}
+        todo = [t for t in todo if t[0] not in have]
+        print(f"  resuming: {len(have)} already cached, {len(todo)} to go")
+        if not todo:
+            np.savez(out_path, **store)
+            print(f"wrote {out_path} (from checkpoint)")
+            return
+
     threads = [
-        threading.Thread(target=producer, args=(todo[i::workers],), daemon=True)
+        threading.Thread(target=_producer, args=(todo[i::workers],), daemon=True)
         for i in range(workers)
     ]
     for t in threads:
         t.start()
 
-    store, t0, done, nframes = {}, time.time(), 0, 0
     while done < len(todo):
         vid, ts, frames = q.get()
         emb = encoder.encode_frames(frames, batch_size=batch_size) if frames else \
@@ -71,8 +85,12 @@ def extract(items, out_path, encoder: Encoder, workers: int = 4, batch_size: int
             el = time.time() - t0
             print(f"  {done}/{len(todo)}  {nframes} frames  {el:.0f}s  "
                   f"({nframes/max(el,1e-6):.0f} fps)", flush=True)
+        if done % 250 == 0:
+            np.savez(ckpt, **store)
 
     np.savez(out_path, **store)
+    if ckpt.exists():
+        ckpt.unlink()
     print(f"wrote {out_path}  ({len(store)//2} videos, {nframes} frames)")
 
 
