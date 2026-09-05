@@ -14,7 +14,7 @@ import argparse
 import numpy as np
 
 from .config import CACHE, CLASS_TO_IDX, NUM_CLASSES
-from .train_head import load_train_intervals
+from .labels import load_train_intervals
 
 
 def video_mean_embeddings(npz_path=None):
