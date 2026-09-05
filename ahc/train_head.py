@@ -58,12 +58,19 @@ def load_train_intervals() -> dict[str, list[tuple[float, float, str]]]:
 
 
 def build_dataset(npz_path=None):
-    """-> X (N,F), y (N,), groups (N,) video ids, for every training window."""
+    """-> X (N,F), y (N,), groups (N,), hard (N,) for every training window.
+
+    `hard` marks a normal window that came from an *anomalous* video. These are
+    the only examples that teach "this scene, but not this moment"; every other
+    negative comes from a different scene entirely. Without them the head learns
+    scene appearance and saturates on long footage - on several test videos
+    p(normal) never exceeds 0.02 for the whole video.
+    """
     data = np.load(npz_path or (CACHE / "train_emb.npz"))
     intervals = load_train_intervals()
     vids = sorted({k.split("__")[0] for k in data.files})
 
-    X, y, groups = [], [], []
+    X, y, groups, hard = [], [], [], []
     for vid in vids:
         emb = data[f"{vid}__emb"]
         ts = data[f"{vid}__ts"]
@@ -85,10 +92,13 @@ def build_dataset(npz_path=None):
             X.append(f)
             y.append(label)
             groups.append(vid)
-    return np.stack(X), np.asarray(y), np.asarray(groups)
+            hard.append(label == 0 and bool(evs))
+    return (np.stack(X), np.asarray(y), np.asarray(groups),
+            np.asarray(hard, dtype=bool))
 
 
-def train(X, y, groups, epochs=30, val_frac=0.15, seed=0, device=None):
+def train(X, y, groups, epochs=30, val_frac=0.15, seed=0, device=None,
+          hard=None, hard_weight=1.0):
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     rng = np.random.default_rng(seed)
 
@@ -113,10 +123,17 @@ def train(X, y, groups, epochs=30, val_frac=0.15, seed=0, device=None):
     w = w / w[w > 0].mean()
     weight = torch.tensor(w, device=device, dtype=torch.float32)
 
+    # per-sample weighting so in-scene negatives can be emphasised
+    sw = np.ones(len(y), np.float32)
+    if hard is not None and hard_weight != 1.0:
+        sw[hard] = hard_weight
+    swt = torch.tensor(sw[tr], device=device, dtype=torch.float32)
+
     model = Head(X.shape[1]).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-2)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
-    lossf = nn.CrossEntropyLoss(weight=weight, label_smoothing=0.05)
+    lossf = nn.CrossEntropyLoss(weight=weight, label_smoothing=0.05,
+                                reduction="none")
 
     best_acc, best_state = -1.0, None
     bs = 512
@@ -127,7 +144,8 @@ def train(X, y, groups, epochs=30, val_frac=0.15, seed=0, device=None):
         for i in range(0, len(perm), bs):
             idx = perm[i : i + bs]
             opt.zero_grad()
-            loss = lossf(model(Xtr[idx]), ytr[idx])
+            per = lossf(model(Xtr[idx]), ytr[idx])
+            loss = (per * swt[idx]).sum() / swt[idx].sum()
             loss.backward()
             opt.step()
             tot += loss.item() * len(idx)
@@ -138,10 +156,16 @@ def train(X, y, groups, epochs=30, val_frac=0.15, seed=0, device=None):
             pred = model(Xva).argmax(1)
             acc = (pred == yva).float().mean().item()
             anom = ((pred > 0) == (yva > 0)).float().mean().item()
+            if hard is not None and hard[va].any():
+                hv = torch.tensor(hard[va], device=device)
+                hard_acc = (pred[hv] == 0).float().mean().item()
+            else:
+                hard_acc = float("nan")
         if acc > best_acc:
             best_acc = acc
             best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
-        print(f"  ep {ep+1:02d}  loss {tot/len(Xtr):.4f}  val_cls {acc:.4f}  val_anom {anom:.4f}")
+        print(f"  ep {ep+1:02d}  loss {tot/len(Xtr):.4f}  val_cls {acc:.4f}  "
+              f"val_anom {anom:.4f}  in-scene-neg {hard_acc:.4f}")
 
     model.load_state_dict(best_state)
     return model, mu, sd, best_acc
@@ -152,18 +176,22 @@ def main():
     ap.add_argument("--epochs", type=int, default=30)
     ap.add_argument("--seeds", type=int, default=3,
                     help="ensemble size; averaging removes single-seed variance")
+    ap.add_argument("--hard-weight", type=float, default=1.0,
+                    help="loss weight on normal windows inside anomalous videos")
     ap.add_argument("--out", default=str(RUNS / "head.pt"))
     args = ap.parse_args()
 
     print("building windows...")
-    X, y, g = build_dataset()
+    X, y, g, hard = build_dataset()
     print(f"  {len(X)} windows, dim {X.shape[1]}, {len(np.unique(g))} videos")
+    print(f"  in-scene negatives: {int(hard.sum())} of {int((y == 0).sum())} normals")
     print("  label counts:", np.bincount(y, minlength=NUM_CLASSES).tolist())
 
     members, accs = [], []
     for s in range(args.seeds):
         print(f"seed {s}:")
-        model, mu, sd, acc = train(X, y, g, epochs=args.epochs, seed=s)
+        model, mu, sd, acc = train(X, y, g, epochs=args.epochs, seed=s,
+                                   hard=hard, hard_weight=args.hard_weight)
         members.append({"state_dict": {k: v.cpu() for k, v in model.state_dict().items()},
                         "mu": mu, "sd": sd, "val_acc": acc})
         accs.append(acc)

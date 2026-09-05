@@ -18,7 +18,7 @@ def probe(path) -> tuple[float, int, float]:
 
 
 def sample_frames(path, target_fps: float = 2.0, max_frames: int = 2048,
-                  out_size: int | None = None):
+                  out_size: int | None = None, tiles: int = 1):
     """Yield (timestamp_sec, RGB uint8 frame) at approximately target_fps.
 
     If the video is long enough that target_fps would exceed max_frames, the
@@ -51,8 +51,13 @@ def sample_frames(path, target_fps: float = 2.0, max_frames: int = 2048,
                 if not ok:
                     break
                 if out_size is not None:
-                    frame = cv2.resize(frame, (out_size, out_size),
-                                       interpolation=cv2.INTER_AREA)
+                    if tiles > 1:
+                        # keep enough resolution to cut tiles from
+                        frame = cv2.resize(frame, (out_size * tiles, out_size * tiles),
+                                           interpolation=cv2.INTER_AREA)
+                    else:
+                        frame = cv2.resize(frame, (out_size, out_size),
+                                           interpolation=cv2.INTER_AREA)
                 yield idx / src_fps, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             idx += 1
     finally:

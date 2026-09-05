@@ -37,10 +37,16 @@ ANOMALY_CLASSES = CLASSES[1:]
 
 # Frame sampling. Anomalies like an accident last ~1s, so we cannot go much
 # below 2 fps without stepping over them entirely.
-FPS = 2.0
-MAX_FRAMES = 2048
+FPS = float(os.environ.get("AHC_FPS", "2.0"))
+MAX_FRAMES = int(os.environ.get("AHC_MAX_FRAMES", "2048"))
 
 ENCODER_ID = os.environ.get("AHC_ENCODER", "google/siglip2-base-patch16-224")
+
+# Spatial tiling: aerial events occupy a small fraction of a 1080p frame, and
+# downsizing the whole frame to 224px destroys them. TILES=2 encodes a 2x2 grid
+# of crops plus the full frame (5 views) and concatenates max- and mean-pooled
+# embeddings. Costs 5x encode; still well above real time.
+TILES = int(os.environ.get("AHC_TILES", "1"))
 
 # Zero-shot text prompts, used as a prior and as a cold-start fallback before
 # the head is trained. Several phrasings per class, averaged in embedding space.

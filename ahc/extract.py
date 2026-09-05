@@ -31,9 +31,9 @@ def list_test_videos() -> list[tuple[str, str, str]]:
     return [(v.stem, "unknown", str(v)) for v in sorted((TEST / "videos").glob("*.mp4"))]
 
 
-def _decode(path: str, out_size: int):
+def _decode(path: str, out_size: int, tiles: int = 1):
     ts, frames = [], []
-    for t, f in sample_frames(path, FPS, MAX_FRAMES, out_size=out_size):
+    for t, f in sample_frames(path, FPS, MAX_FRAMES, out_size=out_size, tiles=tiles):
         ts.append(t)
         frames.append(f)
     return np.asarray(ts, dtype=np.float32), frames
@@ -47,7 +47,7 @@ def extract(items, out_path, encoder: Encoder, workers: int = 4, batch_size: int
     def _producer(shard):
         for vid, _cls, path in shard:
             try:
-                q.put((vid, *_decode(path, encoder.size)))
+                q.put((vid, *_decode(path, encoder.size, encoder.tiles)))
             except Exception as exc:  # a corrupt file must not kill the run
                 print(f"  decode failed {vid}: {exc}")
                 q.put((vid, np.zeros(0, np.float32), []))
