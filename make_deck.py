@@ -168,15 +168,15 @@ def build():
     # ------------------------------------------------------------- slide 1
     s = slide_bg(prs)
     box(s, 0, 0, 0.09, 7.5, ACCENT)
-    text(s, 0.55, 0.42, 9.5, 0.5,
-         "Real-time video anomaly detection on a 4 GB laptop GPU",
-         size=27, bold=True)
-    text(s, 0.55, 1.02, 11.5, 0.34,
-         [("Frozen vision-language encoder + two small trained heads  ·  "
-           "11 anomaly classes  ·  RTX 3050 Laptop, 4 GB VRAM", {})],
+    text(s, 0.55, 0.40, 9.4, 0.55,
+         "Video anomaly detection on a 4 GB laptop GPU",
+         size=26, bold=True)
+    text(s, 0.55, 1.04, 9.4, 0.34,
+         [("Frozen vision-language encoder + two small trained heads  ·  11 classes  ·  "
+           "20.3x real time on an RTX 3050 Laptop", {})],
          size=12.5, color=MUTED)
 
-    stat(s, 10.25, 0.38, 2.55, "0.618", "OVERALL, PUBLIC TEST (34 VIDEOS)")
+    stat(s, 10.25, 0.38, 2.55, "59.5 / 100", "PROJECTED MARKS · PUBLIC TEST")
 
     # pipeline
     text(s, 0.55, 1.72, 6, 0.3, "PIPELINE", size=10, bold=True, color=ACCENT)
@@ -256,26 +256,29 @@ def build():
                          width=Inches(7.4))
 
     # levels
-    y = 4.75
-    text(s, 0.55, y, 7.4, 0.3, "FINAL, BY TASK TIER", size=10, bold=True, color=ACCENT)
-    for i, (lbl, val, note) in enumerate([
-            ("Level 1", "0.750", "clip label · anomaly acc 23/24"),
-            ("Level 2", "0.674", "timed events · both normals silent"),
-            ("Level 3", "0.430", "long footage · timing weighted"),
+    y = 4.62
+    text(s, 0.55, y, 7.4, 0.3, "FINAL, BY DIFFICULTY TIER",
+         size=10, bold=True, color=ACCENT)
+    for i, (lbl, val, marks, note) in enumerate([
+            ("Difficulty 1", "0.750", "18.8 / 25", "anomaly acc 23 of 24"),
+            ("Difficulty 2", "0.674", "23.6 / 35", "both normals silent"),
+            ("Difficulty 3", "0.430", "17.2 / 40", "weakest, and worth most"),
     ]):
         bx = 0.55 + i * 2.52
-        box(s, bx, y + 0.36, 2.32, 1.0, PANEL, radius=0.12)
-        text(s, bx + 0.16, y + 0.47, 2.0, 0.26, lbl, size=9.5, color=MUTED)
-        text(s, bx + 0.16, y + 0.72, 2.0, 0.4, val, size=20, bold=True)
-        text(s, bx + 0.16, y + 1.11, 2.05, 0.24, note, size=8, color=MUTED)
+        box(s, bx, y + 0.34, 2.32, 1.18, PANEL, radius=0.1)
+        text(s, bx + 0.16, y + 0.45, 2.0, 0.24, lbl, size=9.5, color=MUTED)
+        text(s, bx + 0.16, y + 0.68, 2.0, 0.36, val, size=19, bold=True)
+        text(s, bx + 0.16, y + 1.06, 2.0, 0.24, marks + " marks", size=10,
+             bold=True, color=ACCENT)
+        text(s, bx + 0.16, y + 1.28, 2.05, 0.22, note, size=8, color=MUTED)
 
     text(s, 0.55, 6.35, 7.4, 0.85,
          [("Honest caveat.  ", {"bold": True, "color": ACCENT}),
-          ("The decoder is tuned on 6 Level-2 and 4 Level-3 videos, so those "
-           "thresholds are the least trustworthy part of the system. Ties break "
-           "toward the least aggressive setting. Our scorer matches the published "
-           "structure of the metric, but the arena's exact Level-2/3 weighting "
-           "isn't published — it ranks configurations, it doesn't predict the "
+          ("The decoder is tuned on 6 Difficulty-2 and 4 Difficulty-3 videos, so "
+           "those thresholds are the least trustworthy part of the system, and ties "
+           "break toward the least aggressive setting. Our scorer matches the "
+           "published structure of the metric; the exact within-tier weighting "
+           "isn't published, so it ranks configurations rather than predicting the "
            "leaderboard.", {"color": MUTED})],
          size=9.8, spacing=1.15)
 
@@ -308,13 +311,13 @@ def build():
         text(s, fx + 0.2, yy + 1.14, 4.15, 0.24, gain, size=9, bold=True, color=col)
         yy += 1.54
 
-    box(s, fx, 6.52, 4.55, 0.68, PANEL, radius=0.15)
-    text(s, fx + 0.2, 6.62, 4.15, 0.24, "WHAT WE TRIED AND DROPPED",
+    box(s, fx, 6.52, 4.55, 0.82, PANEL, radius=0.12)
+    text(s, fx + 0.2, 6.63, 4.15, 0.22, "WHAT WE TRIED AND DROPPED",
          size=8.5, bold=True, color=RED)
-    text(s, fx + 0.2, 6.86, 4.2, 0.26,
+    text(s, fx + 0.2, 6.87, 4.18, 0.4,
          "Larger SigLIP (segfaults at 4 GB) · zero-shot prompt fusion (0.29 alone, "
          "no lift) · one shared threshold for all tiers",
-         size=8.2, color=MUTED, spacing=1.0)
+         size=8.2, color=MUTED, spacing=1.05)
 
     prs.save(OUT / "AHC_2slide_submission.pptx")
     print("wrote", OUT / "AHC_2slide_submission.pptx")

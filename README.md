@@ -3,9 +3,10 @@
 Detects the 11 anomaly classes in drone / CCTV / dashcam footage, in real time,
 on a **4 GB laptop GPU** (RTX 3050 Laptop).
 
-| | Level 1 | Level 2 | Level 3 | Overall |
+| | D1 (25 marks) | D2 (35 marks) | D3 (40 marks) | Total |
 | --- | --- | --- | --- | --- |
-| Public test (34 videos) | **0.750** | **0.674** | **0.430** | **0.618** |
+| Score | 0.750 | 0.674 | 0.430 | 0.618 mean |
+| Marks | 18.8 | 23.6 | 17.2 | **59.5 / 100** |
 
 3,391 s of video processed in 167 s end to end — **20.3x real time**, decode
 included — at 1.03 GB peak VRAM. For scale, predicting `normal` everywhere

@@ -16,6 +16,8 @@ from collections import defaultdict
 from .config import DATA
 
 IOU_GATE = 0.5
+# arena mark allocation per difficulty tier, summing to 100
+MARKS = {1: 25, 2: 35, 3: 40}
 # (alert, match, timing) per level
 WEIGHTS = {2: (0.30, 0.40, 0.30), 3: (0.20, 0.35, 0.45)}
 
@@ -111,7 +113,14 @@ def score(submission: dict, gt_path=None) -> dict:
         "level2": sum(per_level[2]) / len(per_level[2]) if per_level[2] else 0.0,
         "level3": sum(per_level[3]) / len(per_level[3]) if per_level[3] else 0.0,
     }
-    out["overall"] = (out["level1"] + out["level2"] + out["level3"]) / 3
+    out["mean_of_levels"] = (out["level1"] + out["level2"] + out["level3"]) / 3
+    # The arena does not weight the tiers equally: D1 is worth 25 marks,
+    # D2 35 and D3 40, out of 100. A mark of Level 3 is worth 1.6x a mark of
+    # Level 1, which is where extra effort pays off most.
+    out["marks_d1"] = MARKS[1] * out["level1"]
+    out["marks_d2"] = MARKS[2] * out["level2"]
+    out["marks_d3"] = MARKS[3] * out["level3"]
+    out["marks_total"] = out["marks_d1"] + out["marks_d2"] + out["marks_d3"]
     return out
 
 
