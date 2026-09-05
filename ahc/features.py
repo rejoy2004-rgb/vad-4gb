@@ -47,19 +47,53 @@ def window_feature(emb: np.ndarray) -> np.ndarray:
     return np.concatenate([mean, mx, std, drift, motion]).astype(np.float32)
 
 
-def feature_dim(emb_dim: int) -> int:
-    return emb_dim * 4 + 3
+def feature_dim(emb_dim: int, contrast: bool = False) -> int:
+    return emb_dim * 4 + 3 + (emb_dim + 2 if contrast else 0)
 
 
-def video_windows(emb: np.ndarray, ts: np.ndarray):
+def video_baseline(emb: np.ndarray) -> np.ndarray:
+    """The video's own modal appearance: a per-dimension median over frames."""
+    if len(emb) == 0:
+        return np.zeros(emb.shape[1] if emb.ndim == 2 else 768, np.float32)
+    m = np.median(emb, axis=0)
+    n = np.linalg.norm(m)
+    return (m / n if n > 0 else m).astype(np.float32)
+
+
+def contrast_feature(win: np.ndarray, base: np.ndarray) -> np.ndarray:
+    """How far this window departs from its own video's baseline.
+
+    MEASURED AND REJECTED (kept for the record, off by default): held-out
+    training accuracy rose to 0.869, but ranking AUC on the long test videos
+    collapsed - T026 0.663 -> 0.268, T027 0.742 -> 0.245, T034 0.857 -> 0.532.
+    In a short training clip the window IS the whole video, so contrast is
+    near-zero there and the head learned to lean on a cue that does not exist
+    at test time.
+    """
+    m = win.mean(axis=0)
+    n = np.linalg.norm(m)
+    mn = m / n if n > 0 else m
+    return np.concatenate([
+        (mn - base),
+        np.array([1.0 - float(mn @ base), float(np.linalg.norm(mn - base))],
+                 dtype=np.float32),
+    ]).astype(np.float32)
+
+
+def video_windows(emb: np.ndarray, ts: np.ndarray, contrast: bool = False):
     """-> (features (N,F), spans (N,2) in seconds)."""
     feats, spans = [], []
+    base = video_baseline(emb) if contrast else None
     for a, b in window_bounds(len(emb)):
-        feats.append(window_feature(emb[a:b]))
+        f = window_feature(emb[a:b])
+        if contrast:
+            f = np.concatenate([f, contrast_feature(emb[a:b], base)])
+        feats.append(f)
         t0 = float(ts[a]) if len(ts) else 0.0
         t1 = float(ts[b - 1]) if len(ts) else 0.0
         spans.append((t0, t1))
     if not feats:
-        return np.zeros((0, feature_dim(emb.shape[1] if emb.ndim == 2 else 768)),
-                        np.float32), np.zeros((0, 2), np.float32)
+        d = emb.shape[1] if emb.ndim == 2 else 768
+        return (np.zeros((0, feature_dim(d, contrast)), np.float32),
+                np.zeros((0, 2), np.float32))
     return np.stack(feats), np.asarray(spans, dtype=np.float32)

@@ -28,11 +28,18 @@ from .video import probe, sample_frames
 
 # --------------------------------------------------------------------- loading
 def load_head(path=None, device=None):
+    """Window head, possibly an ensemble. Returned as (members, None, None,
+    device) so callers keep the same 4-tuple shape."""
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     ck = torch.load(path or (RUNS / "head.pt"), map_location=device, weights_only=False)
-    model = Head(ck["in_dim"]).to(device).eval()
-    model.load_state_dict(ck["state_dict"])
-    return model, ck["mu"], ck["sd"], device
+    members = ck.get("members") or [{"state_dict": ck["state_dict"],
+                                     "mu": ck["mu"], "sd": ck["sd"]}]
+    loaded = []
+    for m in members:
+        net = Head(ck["in_dim"]).to(device).eval()
+        net.load_state_dict(m["state_dict"])
+        loaded.append((net, m["mu"], m["sd"]))
+    return loaded, None, None, device
 
 
 def load_clip_head(path=None, device=None):
@@ -90,11 +97,16 @@ def clip_probs(bundle, emb: np.ndarray) -> np.ndarray:
 
 
 @torch.no_grad()
-def window_probs(model, mu, sd, device, feats: np.ndarray) -> np.ndarray:
+def window_probs(members, mu, sd, device, feats: np.ndarray) -> np.ndarray:
+    """Mean of the ensemble members' softmax outputs over all windows."""
     if len(feats) == 0:
         return np.zeros((0, len(CLASSES)), np.float32)
-    x = torch.tensor((feats - mu) / sd, dtype=torch.float32, device=device)
-    return torch.softmax(model(x), dim=-1).cpu().numpy()
+    acc = None
+    for model, m_mu, m_sd in members:
+        x = torch.tensor((feats - m_mu) / m_sd, dtype=torch.float32, device=device)
+        p = torch.softmax(model(x), dim=-1).cpu().numpy()
+        acc = p if acc is None else acc + p
+    return acc / len(members)
 
 
 def load_levels(manifest=None) -> dict[str, int]:
@@ -127,17 +139,37 @@ class Explainer:
         self.cls = list(d["cls"])
         self.ok = len(self.text) > 0
 
-    def explain(self, mean_emb: np.ndarray, class_name: str) -> str | None:
+    def explain(self, mean_emb: np.ndarray, class_name: str,
+                start=None, end=None) -> str | None:
         if not self.ok:
             return None
         idx = [i for i, c in enumerate(self.cls) if c == class_name]
         if not idx:
             return None
         sims = self.emb[idx] @ (mean_emb / (np.linalg.norm(mean_emb) + 1e-9))
-        text = self.text[idx[int(sims.argmax())]].strip()
-        if not 20 <= len(text) <= 500:
-            text = text[:497] + "..." if len(text) > 500 else None
-        return text
+
+        # Terse captions ("A traffic collision occurs.") dominate the bank, so a
+        # plain argmax almost always returns one. Among the closest matches,
+        # prefer one that actually describes the scene.
+        order = np.argsort(-sims)[:25]
+        best, best_key = None, None
+        for j in order:
+            t = self.text[idx[int(j)]].strip()
+            if not 20 <= len(t) <= 420:
+                continue
+            informative = min(len(t), 260) / 260.0
+            key = float(sims[j]) + 0.35 * informative
+            if best_key is None or key > best_key:
+                best, best_key = t, key
+        if best is None:
+            best = self.text[idx[int(sims.argmax())]].strip()
+
+        # ground it in what we actually observed for this event
+        if start is not None and end is not None and end > start:
+            obs = f" Observed for {end - start:.0f} s from {start:.0f} s."
+            if len(best) + len(obs) <= 500:
+                best += obs
+        return best if 20 <= len(best) <= 500 else best[:497] + "..."
 
 
 # -------------------------------------------------------------------- pipeline
@@ -226,7 +258,9 @@ def predict_video(vid, path, level, model, mu, sd, device, params, encoder=None,
             else:
                 sel = (ts >= ev["start_time_sec"]) & (ts <= ev["end_time_sec"])
                 m = E[sel].mean(0) if sel.any() else E.mean(0)
-            txt = explainer.explain(m, ev["class_name"])
+            txt = explainer.explain(m, ev["class_name"],
+                                    ev.get("start_time_sec"),
+                                    ev.get("end_time_sec"))
             if txt:
                 ev["explanation"] = txt
 

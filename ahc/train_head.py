@@ -150,6 +150,8 @@ def train(X, y, groups, epochs=30, val_frac=0.15, seed=0, device=None):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--epochs", type=int, default=30)
+    ap.add_argument("--seeds", type=int, default=3,
+                    help="ensemble size; averaging removes single-seed variance")
     ap.add_argument("--out", default=str(RUNS / "head.pt"))
     args = ap.parse_args()
 
@@ -158,12 +160,22 @@ def main():
     print(f"  {len(X)} windows, dim {X.shape[1]}, {len(np.unique(g))} videos")
     print("  label counts:", np.bincount(y, minlength=NUM_CLASSES).tolist())
 
-    model, mu, sd, acc = train(X, y, g, epochs=args.epochs)
-    torch.save({"state_dict": model.state_dict(), "in_dim": X.shape[1],
-                "mu": mu, "sd": sd, "val_acc": acc}, args.out)
-    json.dump({"val_cls_acc": acc, "windows": int(len(X))},
+    members, accs = [], []
+    for s in range(args.seeds):
+        print(f"seed {s}:")
+        model, mu, sd, acc = train(X, y, g, epochs=args.epochs, seed=s)
+        members.append({"state_dict": {k: v.cpu() for k, v in model.state_dict().items()},
+                        "mu": mu, "sd": sd, "val_acc": acc})
+        accs.append(acc)
+
+    torch.save({"members": members, "in_dim": X.shape[1],
+                "state_dict": members[0]["state_dict"],
+                "mu": members[0]["mu"], "sd": members[0]["sd"],
+                "val_acc": float(np.mean(accs))}, args.out)
+    json.dump({"val_cls_acc": float(np.mean(accs)), "seeds": args.seeds,
+               "windows": int(len(X))},
               open(RUNS / "head_meta.json", "w"), indent=2)
-    print(f"saved {args.out}  (val cls acc {acc:.4f})")
+    print(f"saved {args.out}  ({len(members)} members, mean val acc {np.mean(accs):.4f})")
 
 
 if __name__ == "__main__":
